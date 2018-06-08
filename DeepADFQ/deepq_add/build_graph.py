@@ -1,3 +1,8 @@
+"""
+This code was slightly modified from the baselines/baselines/deepq/build_graph.py in order to use 
+a different evaluation method. In order to run, simply replace the original code with this code 
+in the original directory.
+"""
 """Deep Q learning graph
 
 The functions in this file can are used to create the following functions:

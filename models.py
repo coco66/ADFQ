@@ -1,5 +1,5 @@
-""" 
-<Some MDP environment>
+""""""""""""""""""""""""""""""""" 
+Some MDP environments
 
 Author: Heejin Chloe Jeong (chloe.hjeong@gmail.com)
 Affiliation: University of Pennsylvania
@@ -13,10 +13,10 @@ Available domains:
 	Grid10 
 	Inverted Pendulum (from Geist et al., Kalman Temporal Differences)
 	Tsitsiklis 
-"""
+"""""""""""""""""""""""""""""""""
 import numpy as np
 import random 
-import brl_util_new as util
+import brl_util as util
 import pdb
 import math
 import policy_iter as pi

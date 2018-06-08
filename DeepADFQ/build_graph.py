@@ -2,7 +2,8 @@
 
 This code was written on top of OpenAI baseline code - baselines/baselines/deepq/build_graph.py
 Therefore, most parts of this code and its structure are same with the original code.
-The major difference is the output size of the network (2*num_actions) and build_train()
+The major difference is the output size of the network (2*num_actions) and build_train(), 
+build_act_greedy(), and build_act_bayesian()
 
 The functions in this file can are used to create the following functions:
 ======= act ========
@@ -78,7 +79,6 @@ The functions in this file can are used to create the following functions:
 """
 import tensorflow as tf
 import baselines.common.tf_util as U
-#import tf_util as U
 import numpy as np
 
 
@@ -170,6 +170,8 @@ def build_act(make_obs_ph, q_func, num_actions, scope="deepadfq", reuse=None):
         return act
 
 def build_act_greedy(make_obs_ph, q_func, num_actions, scope="deepadfq", reuse=True, eps=0.0):
+    """Creates the act function for a simple fixed epsilon greedy
+    """
     with tf.variable_scope(scope, reuse=reuse):
         observations_ph = make_obs_ph("observation")
         stochastic_ph = tf.placeholder(tf.bool, (), name="stochastic")
@@ -191,9 +193,8 @@ def build_act_greedy(make_obs_ph, q_func, num_actions, scope="deepadfq", reuse=T
         return act
 
 def build_act_bayesian(make_obs_ph, q_func, num_actions, scope="deepadfq", reuse=None):
-    """Creates the act function:
+    """Creates the act function for Bayesian sampling
     """
-    print("Build Bayesian Sampling Action")
     with tf.variable_scope(scope, reuse=reuse):
         observations_ph = make_obs_ph("observation")
         q_values = q_func(observations_ph.get(), num_actions*2, scope="q_func") # mean and -log(sd)
@@ -245,6 +246,13 @@ def build_train(sess, make_obs_ph, q_func, num_actions, optimizer, grad_norm_cli
     param_noise_filter_func: tf.Variable -> bool
         function that decides whether or not a variable should be perturbed. Only applicable
         if param_noise is True. If set to None, default_param_noise_filter is used by default.
+    varTH : float
+        variance threshold
+    test_eps : float
+        epsilon value for epsilon-greedy method in evaluation
+    act_policy : str
+        either 'egreedy' or 'bayesian' for action policy
+        
     Returns
     -------
     act: (tf.Variable, bool, float) -> tf.Variable
@@ -299,13 +307,8 @@ def build_train(sess, make_obs_ph, q_func, num_actions, optimizer, grad_norm_cli
 
         sd_selected = tf.exp(-rho_selected)
 
-        #kl_loss = tf.contrib.distributions.kl_divergence(
-        #    tf.distributions.Normal(loc=target_means, scale=target_sd),
-        #    tf.distributions.Normal(loc=mean_selected, scale=sd_selected),
-        #    name='kl_loss')
         mean_error = target_means-mean_selected
         sd_error = target_sd - sd_selected 
-        #sd_error = tf.log(target_sd)-tf.log(sd_selected)
         huber_loss = U.huber_loss(mean_error) + U.huber_loss(sd_error)
         weighted_loss = tf.reduce_mean(huber_loss * importance_weights_ph)
 

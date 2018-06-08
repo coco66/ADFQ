@@ -1,3 +1,9 @@
+"""
+This code was slightly modified from the baselines/baselines/deepq/experiment/run_atari.py in order to use 
+a different evaluation method. In order to run, simply replace the original code with this code 
+in the original directory.
+"""
+
 from baselines import deepq
 from baselines.common import set_global_seeds
 from baselines import bench
@@ -7,6 +13,7 @@ from baselines.common.atari_wrappers import make_atari
 import tensorflow as tf
 import datetime, json
 
+from BRL.brl_util_new import iqr
 import os
 
 def main():
@@ -21,6 +28,7 @@ def main():
     parser.add_argument('--nb_steps_warmup', type=int, default = 10000)
     parser.add_argument('--epoch_steps', type=int, default = 20000)
     parser.add_argument('--target_update_freq', type=int, default=1000)
+    parser.add_argument('--nb_step_bound',type=int, default = 10000)
     parser.add_argument('--learning_rate', type=float, default=0.00025)
     parser.add_argument('--gamma', type=float, default=.99)
     parser.add_argument('--log_dir', type=str, default='.')
@@ -50,8 +58,6 @@ def main():
 
     if args.record == 1:
         env = Monitor(env, directory=args.log_dir)
-    import pdb
-    pdb.set_trace()
     with tf.device(args.device):
         model = deepq.models.cnn_to_mlp(
             convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)],
@@ -59,7 +65,7 @@ def main():
             dueling=bool(args.dueling),
         )
 
-        deepq.learn(
+        act, records = deepq.learn(
             env,
             q_func=model,
             lr=args.learning_rate,
@@ -80,10 +86,42 @@ def main():
             gpu_memory = args.gpu_memory,
             double_q = args.double_q,
             directory=directory,
+            nb_step_bound = args.nb_step_bound
         )
 
     env.close()
+    plot(records)
 
+def plot(records):
+    import matplotlib.pyplot as plt
+    x_vals = range(args.nb_step_warmup, args.nb_train_steps, args.epoch_steps)
+    
+    plt.figure(0)
+    plt.plot(x_vals, records['q_mean'])
+    plt.ylabel('Average Q means')
+    plt.xlabel('Learning Steps')
+
+    plt.figure(1)
+    plt.plot(x_vals, np.log(records['q_sd']))
+    plt.ylabel('Log of Average Q SD')
+    plt.xlabel('Learning Steps')
+
+    plt.figure(2)
+    plt.plot(x_vals, records['online_reward'])
+    plt.ylabel('Average recent 100 rewards')
+    plt.xlabel('Learning Steps')
+
+    plt.figure(3)
+    plt.plot(x_vals, records['loss'])
+    plt.ylabel('Loss')
+    plt.xlabel('Learning Steps')
+
+    plt.figure(4)
+    m, ids25, ids75 = iqr(np.array(records['test_reward']).T)
+    plt.plot(x_vals, m, color='b')
+    plt.fill_between(x_vals, list(ids75), list(ids25), facecolor='b', alpha=0.2)
+    plt.ylabel('Test Rewards')
+    plt.xlabel('Learning Steps')
 
 if __name__ == '__main__':
     main()

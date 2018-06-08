@@ -1,9 +1,6 @@
-""" 
-<Policy Iteration>
-
-Author: Heejin Chloe Jeong (chloe.hjeong@gmail.com)
-Affiliation: University of Pennsylvania
-"""
+"""""""""""""""""""""
+Policy Iteration
+"""""""""""""""""""""
 import numpy as np
 import seeding
 

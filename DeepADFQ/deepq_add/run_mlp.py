@@ -1,21 +1,18 @@
 """
-This code was modified from a OpenAI baseline code - baselines/baselines/deepq/experiments/train_cartpole.py 
+This code was slightly modified from the baselines/baselines/deepq/experiment/train_cartpole.py in order to use 
+a different evaluation method. In order to run, simply replace the original code with this code 
+in the original directory.
 """
-from baselines.common import set_global_seeds
-
 import gym
-import models
-import simple
-import numpy as np
-import tensorflow as tf
-import datetime, json, os, argparse
-from BRL.brl_util import iqr
+
+from baselines import deepq
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--env', help='environment ID', default='CartPole-v0')
 parser.add_argument('--seed', help='RNG seed', type=int, default=0)
-parser.add_argument('--prioritized', type=int, default=1)
+parser.add_argument('--prioritized', type=int, default=0)
 parser.add_argument('--prioritized-replay-alpha', type=float, default=0.6)
+parser.add_argument('--double_q', type=int, default=0)
 parser.add_argument('--mode', choices=['train', 'test'], default='train')
 parser.add_argument('--dueling', type=int, default=0)
 parser.add_argument('--nb_train_steps', type=int, default=100000)
@@ -25,20 +22,15 @@ parser.add_argument('--nb_step_warmup', type=int, default = 1000)
 parser.add_argument('--epoch_steps', type=int, default = 1000)
 parser.add_argument('--target_update_freq', type=int, default=500) # This should be smaller than epoch_steps
 parser.add_argument('--nb_step_bound',type=int, default = None)
-parser.add_argument('--learning_rate', type=float, default=0.00025)
+parser.add_argument('--learning_rate', type=float, default=1e-3)
 parser.add_argument('--gamma', type=float, default=.99)
 parser.add_argument('--log_dir', type=str, default='.')
 parser.add_argument('--eps_max', type=float, default=0.1)
 parser.add_argument('--eps_min', type=float, default=.02)
-parser.add_argument('--init_mean', type =float, default=1.)
-parser.add_argument('--init_sd', type=float, default=30.)
 parser.add_argument('--device', type=str, default='/gpu:0')
 parser.add_argument('--alg', choices=['adfq','adfq-v2'], default='adfq')
-parser.add_argument('--act_policy', choices=['egreedy','bayesian'], default='egreedy')
 parser.add_argument('--record',type=int, default=0)
 parser.add_argument('--gpu_memory',type=float, default=1.0)
-parser.add_argument('--varth', type=float,default=1e-5)
-parser.add_argument('--noise', type=float,default=1e-5)
 
 args = parser.parse_args()
 
@@ -49,7 +41,6 @@ def callback(lcl, _glb):
 
 
 def train():
-    set_global_seeds(args.seed)
     directory = os.path.join(args.log_dir, '_'.join([args.env, datetime.datetime.now().strftime("%m%d%H%M")]))
     if not os.path.exists(directory):
             os.makedirs(directory)
@@ -60,9 +51,8 @@ def train():
     env = gym.make(args.env)
 
     with tf.device(args.device):
-        model = models.mlp([64], init_mean=args.init_mean, init_sd=args.init_sd)
-
-        act, records = simple.learn(
+        model = deepq.models.mlp([64])
+        act, records = deepq.learn(
             env,
             q_func=model,
             lr=args.learning_rate,
@@ -70,20 +60,16 @@ def train():
             buffer_size=args.buffer_size,
             exploration_fraction=0.1,
             exploration_final_eps=0.02,
-            target_network_update_freq=500,
             print_freq=10,
             checkpoint_freq=args.epoch_steps,
             learning_starts=args.nb_step_warmup,
-            gamma=args.gamma,
+            gamma = args.gamma,
             callback=None,#callback,
             env_name=args.env,
             epoch_steps = args.epoch_steps,
-            noise = args.noise,
-            varTH=args.varth,
-            alg = args.alg,
             gpu_memory=args.gpu_memory,
-            act_policy=args.act_policy,
             save_dir=directory,
+            double_q = args.double_q,
             nb_step_bound=args.nb_step_bound,
         )
         print("Saving model to model.pkl")
@@ -92,7 +78,7 @@ def train():
         
 def test():
     env = gym.make(args.env)
-    act = simple.load(os.path.join(args.log_dir, "model.pkl"))
+    act = deepq.load(os.path.join(args.log_dir, "model.pkl"))
 
     while True:
         obs, done = env.reset(), False

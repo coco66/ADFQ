@@ -1,7 +1,7 @@
 """
-This code was written on top of OpenAI baseline code - baselines/baselines/deepq/simple.py
-Therefore, most parts of this code and its structure are same with the original code.
+This code was modified from a OpenAI baseline code - baselines/baselines/deepq/simple.py 
 """
+
 import os
 import tempfile
 from tabulate import tabulate
@@ -13,25 +13,16 @@ import cloudpickle
 import numpy as np
 
 import gym
-
-from baselines import bench
-
-# import tf_util as U
-# import logger
-# from schedules import LinearSchedule
-# import build_graph
-# from replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
-# from utils import BatchInput, load_state, save_state
+import build_graph
 import models
 
 import baselines.common.tf_util as U
 from baselines import logger
 from baselines.common.schedules import LinearSchedule
-from baselines import deepq
 from baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
 from baselines.deepq.utils import BatchInput, load_state, save_state
 
-import BRL.brl_util_new as brl_util
+from BRL.brl_util as posterior_adfq, posterior_adfq_v2
 
 
 class ActWrapper(object):
@@ -79,6 +70,7 @@ class ActWrapper(object):
         with open(path, "wb") as f:
             cloudpickle.dump((model_data, self._act_params), f)
 
+
 def load(path):
     """Load act function that was returned by learn function.
     Parameters
@@ -92,6 +84,7 @@ def load(path):
         and returns actions.
     """
     return ActWrapper.load(path)
+
 
 def learn(env,
           q_func,
@@ -113,15 +106,15 @@ def learn(env,
           prioritized_replay_beta_iters=None,
           prioritized_replay_eps=1e-6,
           callback=None,
-          varTH = 1e-05,
+          varTH=1e-05,
           noise = 0.0,
           env_name = None,
           epoch_steps=20000,
-          alg='v1',
+          alg='adfq',
           gpu_memory=1.0,
           act_policy='egreedy',
           save_dir='.',
-          nb_max_test_steps = 10000
+          nb_step_bound = 10000
           ):
 
     """Train a deepadfq model.
@@ -181,14 +174,14 @@ def learn(env,
     callback: (locals, globals) -> None
         function called at every steps with state of the algorithm.
         If callback returns true training stops.
-    varTH : variance lower bound
-    noise : noise for stochastic environment
-    env_name : name of the environment (e.g. 'Breakout-v0')
-    epoch_steps : the number of steps for each epoch
-    alg : the version of ADFQ - original: 'v1' or the stronger approximation: 'v2'
-    gpu_memory : a fraction of your GPU memory if you run multiple programs in the same GPU
-    act_policy : action policy
-    save_dir : a path to a directory to save result data
+    varTH : variance threshold
+    noise : noise for stochastic cases
+    env_name : str, name of the environment (to be used during evaluation)
+    alg : 'adfq' or 'adfq-v2'
+    gpu_memory : a fraction of a gpu memory when running multiple programs in the same gpu 
+    act_policy : action policy, 'egreedy' or 'bayesian'
+    save_dir : path for saving results
+    nb_step_bound : step bound in evaluation
 
     Returns
     -------
@@ -206,11 +199,11 @@ def learn(env,
     sess.__enter__()
     num_actions=env.action_space.n
     varTH = np.float32(varTH)
-   
-    observation_space_shape = env.observation_space.shape
-    adfq_func = brl_util.posterior_adf_v2 if alg == 'v1' else brl_util.posterior_adf
-     # capture the shape outside the closure so that the env object is not serialized
+    # capture the shape outside the closure so that the env object is not serialized
     # by cloudpickle when serializing make_obs_ph
+    observation_space_shape = env.observation_space.shape
+    adfq_func = posterior_adfq if alg == 'adfq' else posterior_adfq_v2
+    #with tf.Session() as sess:
     def make_obs_ph(name):
         return BatchInput(observation_space_shape, name=name)
 
@@ -282,7 +275,7 @@ def learn(env,
             new_obs, rew, done, _ = env.step(env_action)
             if env_name == 'CartPole-v0':
                 if env._elapsed_steps < 200:
-                # Store transition in the replay buffer. Not forcing V(s')=0 when it is terminated because of the stopping criteria
+                # Store transition in the replay buffer.
                     replay_buffer.add(obs, action, rew, new_obs, float(done))
                 else:
                     replay_buffer.add(obs, action, rew, new_obs, float(not done))
@@ -290,6 +283,7 @@ def learn(env,
                 replay_buffer.add(obs, action, rew, new_obs, float(done))
 
             obs = new_obs
+
             episode_rewards[-1] += rew
             if done:
                 obs = env.reset()
@@ -299,9 +293,11 @@ def learn(env,
                     ep_losses.append(np.mean(losses))
                     ep_means.append(np.mean(means))
                     ep_sds.append(np.mean(sds))
+                    losses, means, sds = [], [], []
+
                     ep_mean_err.append(np.mean(mean_errs))
                     ep_sd_err.append(np.mean(sd_errs))
-                    losses, means, sds, mean_errs , sd_errs = [], [], [], [], []
+                    mean_errs , sd_errs = [], []
 
             if t > learning_starts and t % train_freq == 0:
                 # Minimize the error in Bellman's equation on a batch sampled from replay buffer.
@@ -326,7 +322,7 @@ def learn(env,
                 var_tp1 = np.maximum(varTH, np.square(sd_tp1))
 
                 target_mean, target_var, _ = adfq_func(mean_tp1, var_tp1, mean_t, var_t, rewards, gamma,
-                        terminal=dones, asymptotic=False, batch=True, noise_c=noise, varTH = varTH)
+                        terminal=dones, asymptotic=False, batch=True, noise=noise, varTH = varTH)
                 target_sd = np.sqrt(target_var)
 
                 target_mean = np.reshape(target_mean, (-1))
@@ -346,8 +342,8 @@ def learn(env,
                 # Update target network periodically.
                 update_target()
 
-            if t % epoch_steps == 0 and t > learning_starts:
-                test_reward = test(env_name, act_greedy, nb_max_steps=nb_max_test_steps)
+            if (t-1) % epoch_steps == 0 and (t-1) > learning_starts:
+                test_reward = test(env_name, act_greedy, nb_step_bound=nb_step_bound)
                 records['test_reward'].append(test_reward)
                 records['q_mean'].append(np.mean(ep_means))
                 records['q_sd'].append(np.mean(ep_sds))
@@ -382,49 +378,40 @@ def learn(env,
                     model_saved = True
                     saved_mean_reward = mean_100ep_reward
 
-        test_reward = test(env_name, act_greedy, nb_max_steps = nb_max_test_steps)
-        records['test_reward'].append(test_reward)
-        records['q_mean'].append(np.mean(ep_means))
-        records['q_sd'].append(np.mean(ep_sds))
-        records['loss'].append(np.mean(ep_losses))
-        records['online_reward'].append(round(np.mean(episode_rewards[-101:-1]), 1))
-        pickle.dump(records, open(os.path.join(save_dir,"records.pkl"),"wb"))
-
         if model_saved:
             if print_freq is not None:
                 logger.log("Restored model with mean reward: {}".format(saved_mean_reward))
             load_state(model_file)
 
-    return act
+    return act, records
 
-def test(env_name, act_greedy, nb_itrs=5, nb_max_steps=10000):
-"""Greedy evaluation during learning
-Parameters
-----------
-    env_name : a name of the environment
-    act_greedy : an acton policy to be used in the evaluation (greedy or epsilon greedy)
-    nb_itrs : the number of evaluation iterations
-    nb_max_steps : the maximum number of steps in each iteration 
-"""
+def test(env_name, act_greedy, nb_itrs=5, nb_step_bound=10000):
+
     total_rewards = []
     for _ in range(nb_itrs):
         episode_rewards = 0
-        t = 0
         if env_name == 'CartPole-v0':
             env = gym.make(env_name)
         else:
             from baselines.common.atari_wrappers import make_atari
             env = make_atari(env_name)
-            env = bench.Monitor(env, logger.get_dir())
             env = models.wrap_atari_dqn(env)
         obs = env.reset()
-        while(t < nb_max_steps):
-            action = act_greedy(np.array(obs)[None])[0]
-            obs, rew, done, _ = env.step(action)
-            episode_rewards += rew
-            if done:
-                obs = env.reset()
-            t += 1
+        if nb_step_bound is None:
+            done = False
+            while not done:
+                action = act_greedy(np.array(obs)[None])[0]
+                obs, rew, done, _ = env.step(action)
+                episode_rewards += rew
+        else:
+            t = 0
+            while(t < nb_step_bound):
+                action = act_greedy(np.array(obs)[None])[0]
+                obs, rew, done, _ = env.step(action)
+                episode_rewards += rew
+                if done:
+                    obs = env.reset()
+                t += 1
         total_rewards.append(episode_rewards)
 
-    return np.mean(total_rewards)
+    return np.array(total_rewards, dtype=np.float32)

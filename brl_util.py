@@ -14,8 +14,6 @@ from scipy.interpolate import spline
 import copy
 import time
 
-import pdb
-
 COLORS = ['g','k','r','b','c','m','y','burlywood','chartreuse','0.8','0.6', '0.4', '0.2']
 MARKER = ['-','--', '*-', '+-','d-','o-','x-','s-','2-','3-']
 T_chain = 5000
@@ -470,7 +468,7 @@ def plot_smoothing(T, data, labels, x_label='x', y_label='y', title=None, save=F
         else:
             lw = 1.5
 
-        tmp, =ax.plot(ts, smoothing(y[i], window),  MARKER[i], linewidth=lw, color = colors[i], markeredgecolor = colors[i], markerfacecolor='None')
+        tmp, =ax.plot(ts, smoothing(data[i], window),  MARKER[i], linewidth=lw, color = colors[i], markeredgecolor = colors[i], markerfacecolor='None')
         plot_list.append(tmp)
     pdb.set_trace()
     for i in range(data.shape[0]):

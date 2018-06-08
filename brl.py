@@ -13,6 +13,7 @@ import seeding
 import copy
 
 import brl_util as util
+import pdb
 
 class BRL(object):
 	def __init__(self, scene, discount, TH, useGym=False, memory_size=None):
@@ -205,7 +206,7 @@ class adfq(BRL):
 		s = self.env.reset(self.np_random)
 		self.log_scale = 0.0
 		while(self.step < self.env.timeH):
-			if self.step%(self.env.timeH/200) == 0:
+			if self.step%(self.env.timeH/util.EVAL_NUM) == 0:
 				self.Q_err.append(self.err())
 
 			a = self.action_selection(s, actionPolicy, actionParam)
@@ -429,7 +430,7 @@ class ktd_Q(BRL):
 		state = self.env.reset(self.np_random)
 		t = 0 # This is "step" in Inv_pendulum and self.step is episode.
 		while( self.step < self.env.timeH):
-			if self.step%(self.env.timeH/200) == 0:
+			if self.step%(self.env.timeH/util.EVAL_NUM) == 0:
 				self.Q_err.append(self.err())
 
 			if actionPolicy == "active":
