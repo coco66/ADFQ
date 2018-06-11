@@ -9,7 +9,7 @@ import simple
 import numpy as np
 import tensorflow as tf
 import datetime, json, os, argparse
-from BRL.brl_util import iqr
+from brl_util import iqr
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--env', help='environment ID', default='CartPole-v0')
@@ -75,7 +75,7 @@ def train():
             checkpoint_freq=args.epoch_steps,
             learning_starts=args.nb_step_warmup,
             gamma=args.gamma,
-            callback=None,#callback,
+            callback=callback,
             env_name=args.env,
             epoch_steps = args.epoch_steps,
             noise = args.noise,

@@ -13,7 +13,7 @@ import simple
 import tensorflow as tf
 import numpy as np
 import os, datetime, json
-from BRL.brl_util import iqr
+from ADFQ.brl_util import iqr
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--env', help='environment ID', default='BreakoutNoFrameskip-v4')

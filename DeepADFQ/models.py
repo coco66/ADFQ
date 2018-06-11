@@ -2,7 +2,7 @@
 """
 import tensorflow as tf
 import tensorflow.contrib.layers as layers
-import numpy as npx.
+import numpy as np
 
 def wrap_atari_dqn(env):
     from baselines.common.atari_wrappers import wrap_deepmind

@@ -2,8 +2,26 @@
 Example script for running ADFQ, KTD-Q, Tabular Q-learning.
 
 The default values are not necessarily the best values. 
-Please see the paper () for details on the evaluation methods and hyperparameters.
+Please see the ADFQ paper for details on the evaluation methods and hyperparameters.
 
+You can choose different aciton policies for the actionPolicy variable:
+	- offline # give an action trajectory
+	- egreedy # epsilon-greedy 
+	- softmax # softmax with the boltzmann distribution only for Q-learning
+	- Bayes # Bayesian (posterior) sampling only for ADFQ
+	- semi-Bayes # random with a small given probability and Bayesian sampling otherwise, only for ADFQ
+	- active # active learning scheme for KTD-Q
+	- random # uniform-random 
+
+You can also test the algorithms in different domains presented in models.py 
+	- chain
+	- loop
+	- grid5
+	- grid10
+	- minimaze # presented in the ADFQ paper
+	- maze 
+	- inv_pendulum # KTD-Q only
+	
 """""""""""""""""""""""""""""""""
 from brl import *
 import brl_util as util
@@ -45,6 +63,7 @@ actions = np.random.choice(env.anum, env.timeH)
 
 x_vals = range(0, env.timeH, int(env.timeH/util.EVAL_NUM))
 # ADFQ
+print("Running ADFQ ... ")
 noise = 0.0 if args.slip == 0.0 else 0.001
 batch_size = 0 if args.slip == 0.0 else 20
 adfq = adfq(args.env, args.discount, init_mean = args.init_mean)
@@ -54,6 +73,7 @@ ax1.plot(x_vals, adfq.test_rewards)
 ax2.plot(x_vals, adfq.Q_err)
 
 # Q-learning 
+print("Running Q-learning ... ")
 qlearning = Qlearning(args.env, args.q_learning_rate, args.discount, initQ = args.init_mean)
 qlearning.env.set_slip(args.slip)
 qlearning.learning(actionPolicy='offline', actionParam=actions, eval_greedy=True)
@@ -61,13 +81,13 @@ ax1.plot(x_vals, qlearning.test_rewards)
 ax2.plot(x_vals, qlearning.Q_err)
 
 # KTD-Q
-"""
+print("Running KTD-Q ... ")
 ktd = ktd_Q(args.env, args.discount, init_mean = args.init_mean)
 ktd.env.set_slip(args.slip)
 ktd.learning(actionPolicy='offline', actionParam=actions, kappa=1, eval_greedy = True)
 ax1.plot(x_vals, ktd.test_rewards)
 ax2.plot(x_vals, ktd.Q_err)
-"""
+
 ax1.legend(['ADFQ', 'Q-learning', 'KTD-Q'])
 ax2.legend(['ADFQ', 'Q-learning', 'KTD-Q'])
 

@@ -16,14 +16,13 @@ import gym
 import build_graph
 import models
 
+from brl_util import posterior_adfq, posterior_adfq_v2
+
 import baselines.common.tf_util as U
 from baselines import logger
 from baselines.common.schedules import LinearSchedule
 from baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
 from baselines.deepq.utils import BatchInput, load_state, save_state
-
-from BRL.brl_util as posterior_adfq, posterior_adfq_v2
-
 
 class ActWrapper(object):
     def __init__(self, act, act_params):
