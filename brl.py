@@ -63,9 +63,9 @@ class BRL(object):
 	def draw(self,s,a,t,r):
 		"""Print out simulation.
     	"""	
-		print "s:",s,"t:",t,"Reward:",r,"Total Reward:",sum(self.rewards)+r
+		print("s:",s,"t:",t,"Reward:",r,"Total Reward:",sum(self.rewards)+r)
 		self.env.plot(s,a)
-		print "====="
+		print("=====")
 		time.sleep(0.5)	
 
 	def greedy_policy(self, get_action_func, step_bound = None, num_itr = util.EVAL_RUNS):
@@ -308,8 +308,8 @@ class adfq(BRL):
 			tmp  = self.np_random.normal(self.means[state],np.sqrt(self.vars[state]))
 			return np.argmax(tmp)
 
- 	def get_action_egreedy(self,state,epsilon):
- 		if self.np_random.rand(1)[0] < epsilon: 
+	def get_action_egreedy(self,state,epsilon):
+		if self.np_random.rand(1)[0] < epsilon: 
 			return int(self.np_random.choice(range(self.env.anum)))
 		else:
 			return np.argmax(self.means[state])

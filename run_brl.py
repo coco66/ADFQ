@@ -43,12 +43,13 @@ ax2.set_ylabel('Average Episode Rewards')
 env = models.model_assign(args.env)
 actions = np.random.choice(env.anum, env.timeH)
 
-x_vals = range(0, env.timeH, env.timeH/util.EVAL_NUM)
+x_vals = range(0, env.timeH, int(env.timeH/util.EVAL_NUM))
 # ADFQ
 noise = 0.0 if args.slip == 0.0 else 0.001
+batch_size = 0 if args.slip == 0.0 else 20
 adfq = adfq(args.env, args.discount, init_mean = args.init_mean)
 adfq.env.set_slip(args.slip)
-adfq.learning(actionPolicy='offline', actionParam=actions, eval_greedy = True, noise=noise)
+adfq.learning(actionPolicy='offline', actionParam=actions, eval_greedy = True, noise=noise, batch_size=batch_size)
 ax1.plot(x_vals, adfq.test_rewards)
 ax2.plot(x_vals, adfq.Q_err)
 
@@ -60,12 +61,13 @@ ax1.plot(x_vals, qlearning.test_rewards)
 ax2.plot(x_vals, qlearning.Q_err)
 
 # KTD-Q
+"""
 ktd = ktd_Q(args.env, args.discount, init_mean = args.init_mean)
 ktd.env.set_slip(args.slip)
 ktd.learning(actionPolicy='offline', actionParam=actions, kappa=1, eval_greedy = True)
 ax1.plot(x_vals, ktd.test_rewards)
 ax2.plot(x_vals, ktd.Q_err)
-
+"""
 ax1.legend(['ADFQ', 'Q-learning', 'KTD-Q'])
 ax2.legend(['ADFQ', 'Q-learning', 'KTD-Q'])
 

@@ -56,8 +56,8 @@ class Tabular(object):
 		"""Print out simulation.
     	"""
 		self.env.plot(s,a)
-		print "s:",s,"t:",t,"Reward:",r,"Total Reward:",sum(self.rewards)+r
-		print "B",self.Q[s]
+		print("s:",s,"t:",t,"Reward:",r,"Total Reward:",sum(self.rewards)+r)
+		print("B",self.Q[s])
 		time.sleep(0.5)
 
 	def err(self):
@@ -177,14 +177,14 @@ class Tabular(object):
 			batch_size : the size of the batch
 		"""
 		minibatch = {'state':[], 'action':[], 'reward':[], 'state_n':[], 'terminal':[]}
-		for _ in xrange(batch_size):
+		for _ in range(batch_size):
 			d = self.replayMem[(s,a)][random.randint(0,len(self.replayMem[(s,a)])-1)]
 			for (k,v) in minibatch.items():
 				v.append(d[k])
 		return minibatch
 
 	def get_action_egreedy(self,state,epsilon):
- 		if self.np_random.rand(1)[0] > (1-epsilon): 
+		if self.np_random.rand(1)[0] > (1-epsilon): 
 			return int(self.np_random.choice(range(self.env.anum)))
 		else:
 			return np.argmax(self.Q[state])
@@ -294,7 +294,7 @@ class MC(Tabular):
 			epLen = len(epsiode['state'])
 			gammas = np.power(gamma, range(0,epLen))
 
-			for i in xrange(epLen):
+			for i in range(epLen):
 				G = np.dot(epsiode['reward'][i:], gammas[i:]) if i > (epLen-200) else 0
 				currQ = self.Q[epsiode['state'][i], epsiode['action'][i]]
 				if self.visits[epsiode['state'][i], epsiode['action'][i]] == 0:

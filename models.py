@@ -71,7 +71,7 @@ class Chain(Models):
 		self.stochastic = True
 		self.map = np.asarray(["01234"],dtype='c')
 		self.goal = (5,5) # This is not a goal. default.
-		self.eff_states = [i for i in xrange(self.snum) if not(i in [])]
+		self.eff_states = [i for i in range(self.snum) if not(i in [])]
 		self.phi = (lambda x,y: util.discrete_phi(x, y, self.snum*self.anum, self.anum), self.snum*self.anum)
 
 	def observe(self,state,action,np_rand):
@@ -92,8 +92,8 @@ class Chain(Models):
 	def plot(self,state,action):
 		desc = self.map.tolist()
 		desc[0][state] = util.colorize(desc[0][state], "red", highlight=True)        
-		print "action: ", ["1","2"][action] if action is not None else None
-		print "\n".join("".join(row) for row in desc)
+		print("action: ", ["1","2"][action]) if action is not None else None
+		print("\n".join("".join(row) for row in desc))
 
 	def reset(self,np_rand):
 		return 0 
@@ -144,7 +144,7 @@ class Loop(Models):
 		self.slip = 0.0
 		self.stochastic = False
 		self.goal = (9,9) # This is not a goal. default.
-		self.eff_states = [i for i in xrange(self.snum) if not(i in [])]
+		self.eff_states = [i for i in range(self.snum) if not(i in [])]
 		self.phi = (lambda x,y: util.discrete_phi(x, y, self.snum*self.anum, self.anum), self.snum*self.anum)
 
 	def observe(self, state,action,np_rand=None):
@@ -212,7 +212,7 @@ class MiniMaze(Models):
 		self.goal_pos = (0,4)
 		self.goal = (96,104)
 		redundants = [16, 17, 19, 21, 48, 50, 51, 54, 88, 89, 90, 92, 96, 97, 98, 99, 100, 101, 102, 103]
-		self.eff_states = [i for i in xrange(self.snum) if not(i in redundants)]
+		self.eff_states = [i for i in range(self.snum) if not(i in redundants)]
 		self.phi = (lambda x,y: util.discrete_phi(x, y, self.snum*self.anum, self.anum), self.snum*self.anum)
 		self.map = np.asarray(["SWFWG","OOOOO","WOOOW","FOWFW"],dtype='c')
 		self.img_map = np.ones(self.dim)
@@ -230,7 +230,7 @@ class MiniMaze(Models):
 		else:
 			a = action
 		
-		cell = self.idx2cell[state/8]
+		cell = self.idx2cell[int(state/8)]
 		if a == 0:
 			c_next = cell[1]
 			r_next = max(0,cell[0]-1)
@@ -244,7 +244,7 @@ class MiniMaze(Models):
 			c_next = min(self.dim[1]-1,cell[1]+1)
 			r_next = cell[0]
 		else:
-			print action, a 
+			print(action, a) 
 			raise ValueError
 		
 		if (r_next == self.goal_pos[0]) and (c_next == self.goal_pos[1]): # Reach the exit
@@ -277,11 +277,11 @@ class MiniMaze(Models):
 			return np.inner(v,[1,2,3])+1
 
 	def plot(self,state,action):
-		cell = self.idx2cell[state/8]
+		cell = self.idx2cell[int(state/8)]
 		desc = self.map.tolist()
 		desc[cell[0]][cell[1]] = util.colorize(desc[cell[0]][cell[1]], "red", highlight=True)        
-		print "action: ", ["UP","DOWN","LEFT","RIGHT"][action] if action is not None else None
-		print "\n".join("".join(row) for row in desc)
+		print("action: ", ["UP","DOWN","LEFT","RIGHT"][action]) if action is not None else None
+		print("\n".join("".join(row) for row in desc))
 
 	def optQ(self, discount):
 		try:
@@ -313,7 +313,7 @@ class Maze(Models):
 		self.goal_pos = (0,6)
 		self.goal = (232,240)
 		redundants = [32, 33, 35, 37, 64, 66, 67, 70, 232, 233, 234, 235, 236, 237, 238, 239, 256, 257, 258, 260]
-		self.eff_states = [i for i in xrange(self.snum) if not(i in redundants)]
+		self.eff_states = [i for i in range(self.snum) if not(i in redundants)]
 		self.phi = (lambda x,y: util.discrete_phi(x, y, self.snum*self.anum, self.anum), self.snum*self.anum)
 		self.map = np.asarray(["SWFOWOG","OWOOWOO","OOOOOOO","WWOOOWW","OOOOOOF","FOOOOOW"],dtype='c')
 		self.img_map = np.ones(self.dim)
@@ -337,7 +337,7 @@ class Maze(Models):
 		else:
 			a = action
 		
-		cell = self.idx2cell[state/8]
+		cell = self.idx2cell[int(state/8)]
 	
 		if a == 0:
 			c_next = cell[1]
@@ -352,7 +352,7 @@ class Maze(Models):
 			c_next = min(self.dim[1]-1,cell[1]+1)
 			r_next = cell[0]
 		else:
-			print action, a 
+			print(action, a)
 			raise ValueError		
 		if (r_next == self.goal_pos[0]) and (c_next == self.goal_pos[1]): 
 			v_flag = self.num2flag(state%8)
@@ -383,11 +383,11 @@ class Maze(Models):
 			return np.inner(v,[1,2,3])+1
 
 	def plot(self,state,action):
-		cell = self.idx2cell[state/8]
+		cell = self.idx2cell[int(state/8)]
 		desc = self.map.tolist()
 		desc[cell[0]][cell[1]] = util.colorize(desc[cell[0]][cell[1]], "red", highlight=True)        
-		print "action: ", ["UP","DOWN","LEFT","RIGHT"][action] if action is not None else None
-		print "\n".join("".join(row) for row in desc)
+		print("action: ", ["UP","DOWN","LEFT","RIGHT"][action]) if action is not None else None
+		print("\n".join("".join(row) for row in desc))
 
 	def optQ(self, discount):
 		try:
@@ -429,7 +429,7 @@ class Grid5(Models):
 			a = action
 
 		r = state%5
-		c = state/5
+		c = int(state/5)
 		# action :: 0:up 1:down 2:left 3:right
 		(r,c) = self.move(a,(r,c))
 		if r==self.goal_pos[0] and c==self.goal_pos[1]:
@@ -439,11 +439,11 @@ class Grid5(Models):
 
 	def plot(self,state,action):
 		r = state%5
-		c = state/5
+		c = int(state/5)
 		desc = self.map.tolist()
 		desc[r][c] = util.colorize(desc[r][c], "red", highlight=True) 
-		print "action: ", ["UP","DOWN","LEFT","RIGHT"][action] if action is not None else None       
-		print "\n".join("".join(row) for row in desc)
+		print("action: ", ["UP","DOWN","LEFT","RIGHT"][action]) if action is not None else None       
+		print("\n".join("".join(row) for row in desc))
 
 	def move(self,action,pos): 
 		"""
@@ -501,7 +501,7 @@ class Grid10(Models):
 			a = action
 
 		r = state%10
-		c = state/10
+		c = int(state/10)
 		# action :: 0:up 1:down 2:left 3:right
 		if a == 0:
 			r = max(0,r-1)
@@ -521,11 +521,11 @@ class Grid10(Models):
 
 	def plot(self,state,action):
 		r = state%10
-		c = state/10
+		c = int(state/10)
 		desc = self.map.tolist()
 		desc[r][c] = util.colorize(desc[r][c], "red", highlight=True)  
-		print "action: ", ["UP","DOWN","LEFT","RIGHT"][action] if action is not None else None      
-		print "\n".join("".join(row) for row in desc)
+		print("action: ", ["UP","DOWN","LEFT","RIGHT"][action]) if action is not None else None      
+		print("\n".join("".join(row) for row in desc))
 
 	def optQ(self, discount):
 		try:
