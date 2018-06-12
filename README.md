@@ -6,7 +6,7 @@ Daniel D. Lee (ddlee@seas.upenn.edu)
 * Assumed Density Filtering Q-learning (https://arxiv.org/abs/1712.03333)
 
 ## Requirement 
-The ADFQ codes for the finite state and action spaces (directly under the ADFQ directory) works both in python 2.7.x and python 3.
+The ADFQ codes for the finite state and action spaces (directly under the ADFQ directory) work both in python 2.7.x and python 3.
 Clone the repo
 ```
 git clone https://github.com/coco66/ADFQ.git
