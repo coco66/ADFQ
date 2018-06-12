@@ -9,7 +9,6 @@ import simple
 import numpy as np
 import tensorflow as tf
 import datetime, json, os, argparse
-from brl_util import iqr
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--env', help='environment ID', default='CartPole-v0')
@@ -18,7 +17,7 @@ parser.add_argument('--prioritized', type=int, default=1)
 parser.add_argument('--prioritized-replay-alpha', type=float, default=0.6)
 parser.add_argument('--mode', choices=['train', 'test'], default='train')
 parser.add_argument('--dueling', type=int, default=0)
-parser.add_argument('--nb_train_steps', type=int, default=100000)
+parser.add_argument('--nb_train_steps', type=int, default=50000)
 parser.add_argument('--buffer_size', type=int, default=50000)
 parser.add_argument('--batch_size', type=int, default=32)
 parser.add_argument('--nb_step_warmup', type=int, default = 1000)
@@ -87,7 +86,7 @@ def train():
             nb_step_bound=args.nb_step_bound,
         )
         print("Saving model to model.pkl")
-        act.save(os.path.join(args.log_dir,"model.pkl"))
+        act.save(os.path.join(directory,"model.pkl"))
     plot(records)
         
 def test():
@@ -105,7 +104,8 @@ def test():
 
 def plot(records):
     import matplotlib.pyplot as plt
-    x_vals = range(args.nb_step_warmup, args.nb_train_steps, args.epoch_steps)
+    m = len(records['q_mean'])
+    x_vals = range(0 , args.epoch_steps*m, args.epoch_steps)
     
     plt.figure(0)
     plt.plot(x_vals, records['q_mean'])
@@ -128,11 +128,12 @@ def plot(records):
     plt.xlabel('Learning Steps')
 
     plt.figure(4)
-    m, ids25, ids75 = iqr(np.array(records['test_reward']).T)
+    m, ids25, ids75 = simple.iqr(np.array(records['test_reward']).T)
     plt.plot(x_vals, m, color='b')
     plt.fill_between(x_vals, list(ids75), list(ids25), facecolor='b', alpha=0.2)
     plt.ylabel('Test Rewards')
     plt.xlabel('Learning Steps')
+    plt.show()
 
 if __name__ == '__main__':
     if args.mode == 'train':

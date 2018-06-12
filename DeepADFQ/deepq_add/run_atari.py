@@ -11,10 +11,7 @@ import argparse
 from baselines import logger
 from baselines.common.atari_wrappers import make_atari
 import tensorflow as tf
-import datetime, json
-
-from BRL.brl_util_new import iqr
-import os
+import datetime, json, os
 
 def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -94,34 +91,27 @@ def main():
 
 def plot(records):
     import matplotlib.pyplot as plt
-    x_vals = range(args.nb_step_warmup, args.nb_train_steps, args.epoch_steps)
+    import numpy as np
+    m = len(records['online_reward'])
+    x_vals = range(0 , args.epoch_steps*m, args.epoch_steps)
     
     plt.figure(0)
-    plt.plot(x_vals, records['q_mean'])
-    plt.ylabel('Average Q means')
-    plt.xlabel('Learning Steps')
-
-    plt.figure(1)
-    plt.plot(x_vals, np.log(records['q_sd']))
-    plt.ylabel('Log of Average Q SD')
-    plt.xlabel('Learning Steps')
-
-    plt.figure(2)
     plt.plot(x_vals, records['online_reward'])
     plt.ylabel('Average recent 100 rewards')
     plt.xlabel('Learning Steps')
 
-    plt.figure(3)
+    plt.figure(1)
     plt.plot(x_vals, records['loss'])
     plt.ylabel('Loss')
     plt.xlabel('Learning Steps')
 
-    plt.figure(4)
-    m, ids25, ids75 = iqr(np.array(records['test_reward']).T)
+    plt.figure(2)
+    m, ids25, ids75 = deepq.simple.iqr(np.array(records['test_reward']).T)
     plt.plot(x_vals, m, color='b')
     plt.fill_between(x_vals, list(ids75), list(ids25), facecolor='b', alpha=0.2)
     plt.ylabel('Test Rewards')
     plt.xlabel('Learning Steps')
+    plt.show()
 
 if __name__ == '__main__':
     main()

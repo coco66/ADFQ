@@ -1,9 +1,12 @@
 """
-This code was slightly modified from the baselines/baselines/deepq/experiment/train_cartpole.py in order to use 
+This code was slightly modified from the baselines/baselines/deepq/train_cartpole.py in order to use 
 a different evaluation method. In order to run, simply replace the original code with this code 
 in the original directory.
 """
 import gym
+import argparse
+import tensorflow as tf
+import datetime, json, os
 
 from baselines import deepq
 
@@ -15,7 +18,7 @@ parser.add_argument('--prioritized-replay-alpha', type=float, default=0.6)
 parser.add_argument('--double_q', type=int, default=0)
 parser.add_argument('--mode', choices=['train', 'test'], default='train')
 parser.add_argument('--dueling', type=int, default=0)
-parser.add_argument('--nb_train_steps', type=int, default=100000)
+parser.add_argument('--nb_train_steps', type=int, default=50000)
 parser.add_argument('--buffer_size', type=int, default=50000)
 parser.add_argument('--batch_size', type=int, default=32)
 parser.add_argument('--nb_step_warmup', type=int, default = 1000)
@@ -68,12 +71,12 @@ def train():
             env_name=args.env,
             epoch_steps = args.epoch_steps,
             gpu_memory=args.gpu_memory,
-            save_dir=directory,
+            directory=directory,
             double_q = args.double_q,
             nb_step_bound=args.nb_step_bound,
         )
         print("Saving model to model.pkl")
-        act.save(os.path.join(args.log_dir,"model.pkl"))
+        act.save(os.path.join(directory,"model.pkl"))
     plot(records)
         
 def test():
@@ -91,34 +94,27 @@ def test():
 
 def plot(records):
     import matplotlib.pyplot as plt
-    x_vals = range(args.nb_step_warmup, args.nb_train_steps, args.epoch_steps)
-    
+    import numpy as np
+    m = len(records['online_reward'])
+    x_vals = range(0 , args.epoch_steps*m, args.epoch_steps)
+
     plt.figure(0)
-    plt.plot(x_vals, records['q_mean'])
-    plt.ylabel('Average Q means')
-    plt.xlabel('Learning Steps')
-
-    plt.figure(1)
-    plt.plot(x_vals, np.log(records['q_sd']))
-    plt.ylabel('Log of Average Q SD')
-    plt.xlabel('Learning Steps')
-
-    plt.figure(2)
     plt.plot(x_vals, records['online_reward'])
     plt.ylabel('Average recent 100 rewards')
     plt.xlabel('Learning Steps')
 
-    plt.figure(3)
+    plt.figure(1)
     plt.plot(x_vals, records['loss'])
     plt.ylabel('Loss')
     plt.xlabel('Learning Steps')
 
-    plt.figure(4)
-    m, ids25, ids75 = iqr(np.array(records['test_reward']).T)
+    plt.figure(2)
+    m, ids25, ids75 = deepq.simple.iqr(np.array(records['test_reward']).T)
     plt.plot(x_vals, m, color='b')
     plt.fill_between(x_vals, list(ids75), list(ids25), facecolor='b', alpha=0.2)
     plt.ylabel('Test Rewards')
     plt.xlabel('Learning Steps')
+    plt.show()
 
 if __name__ == '__main__':
     if args.mode == 'train':

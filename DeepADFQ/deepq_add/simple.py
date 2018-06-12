@@ -304,15 +304,15 @@ def learn(env,
                 # Update target network periodically.
                 update_target()
 
-            if t % epoch_steps == 0 and t > learning_starts:
-                    test_reward = test(env_name, act_greedy, nb_step_bound=nb_step_bound)
-                    records['test_reward'].append(test_reward)
-                    records['loss'].append(np.mean(ep_losses))
-                    records['online_reward'].append(round(np.mean(episode_rewards[-101:-1]), 1))
-                    pickle.dump(records, open(os.path.join(directory,"records.pkl"),"wb"))
-                    print("==== EPOCH %d ==="%(t/epoch_steps))
-                    print(tabulate([[k,v[-1]] for (k,v) in records.items()]))
-
+            if (t-1) % epoch_steps == 0 and (t-1) > learning_starts:
+                test_reward = test(env_name, act_greedy, nb_step_bound=nb_step_bound)
+                records['test_reward'].append(test_reward)
+                records['loss'].append(np.mean(ep_losses))
+                records['online_reward'].append(round(np.mean(episode_rewards[-101:-1]), 1))
+                pickle.dump(records, open(os.path.join(directory,"records.pkl"),"wb"))
+                print("==== EPOCH %d ==="%(t/epoch_steps))
+                print(tabulate([[k,v[-1]] for (k,v) in records.items()]))
+                
             mean_100ep_reward = round(np.mean(episode_rewards[-101:-1]), 1)
             num_episodes = len(episode_rewards)
             if done and print_freq is not None and len(episode_rewards) % print_freq == 0:
@@ -369,3 +369,19 @@ def test(env_name, act_greedy, nb_itrs=5, nb_step_bound=10000):
 
     return np.array(total_rewards, dtype=np.float32)
 
+def iqr(x):
+    """Interquantiles
+    x has to be a 2D np array. The interquantiles are computed along with the axis 1
+    """
+    i25 = int(0.25*x.shape[0])
+    i75 = int(0.75*x.shape[0])
+    x=x.T
+    ids25=[]
+    ids75=[]
+    m = []
+    for y in x:
+        tmp = np.sort(y)
+        ids25.append(tmp[i25])
+        ids75.append(tmp[i75])
+        m.append(np.mean(tmp,dtype=np.float32))
+    return m, ids25, ids75

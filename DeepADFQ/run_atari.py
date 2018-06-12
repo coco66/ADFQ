@@ -13,7 +13,6 @@ import simple
 import tensorflow as tf
 import numpy as np
 import os, datetime, json
-from ADFQ.brl_util import iqr
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--env', help='environment ID', default='BreakoutNoFrameskip-v4')
@@ -97,7 +96,7 @@ def train():
             gpu_memory = args.gpu_memory,
             varTH=args.varth,
             act_policy=args.act_policy,
-            save_dir=directory,
+            directory=directory,
             nb_step_bound = args.nb_step_bound, 
         )
         print("Saving model to model.pkl")
@@ -121,8 +120,9 @@ def test():
 
 def plot(records):
     import matplotlib.pyplot as plt
-    x_vals = range(args.nb_step_warmup, args.nb_train_steps, args.epoch_steps)
-    
+    m = len(records['online_reward'])
+    x_vals = range(0 , args.epoch_steps*m, args.epoch_steps)
+
     plt.figure(0)
     plt.plot(x_vals, records['q_mean'])
     plt.ylabel('Average Q means')
@@ -144,11 +144,12 @@ def plot(records):
     plt.xlabel('Learning Steps')
 
     plt.figure(4)
-    m, ids25, ids75 = iqr(np.array(records['test_reward']).T)
+    m, ids25, ids75 = simple.iqr(np.array(records['test_reward']).T)
     plt.plot(x_vals, m, color='b')
     plt.fill_between(x_vals, list(ids75), list(ids25), facecolor='b', alpha=0.2)
     plt.ylabel('Test Rewards')
     plt.xlabel('Learning Steps')
+    plt.show()
 
 if __name__ == '__main__':
     if args.mode == 'train':
