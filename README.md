@@ -1,7 +1,7 @@
-Author: 
-Heejin Chloe Jeong* (heejinj@seas.upenn.edu)
-Clark Zhang (clarkz@seas.upenn.edu)
-Daniel D. Lee (ddlee@seas.upenn.edu)
+Author: \\
+Heejin Chloe Jeong* (heejinj@seas.upenn.edu)\\
+Clark Zhang (clarkz@seas.upenn.edu)\\
+Daniel D. Lee (ddlee@seas.upenn.edu)\\
 
 * Assumed Density Filtering Q-learning (https://arxiv.org/abs/1712.03333)
 
@@ -34,7 +34,7 @@ python run_mlp.py
 set callback=None in line 78 if you don't want it to end its training after reaching 199.
 Running ADFQ in an atari game, for example, Asterix-v0
 ```
-python run_mlp.py --env AsterixDeterministic-v4 --act_policy bayesian
+python run_atari.py --env AsterixDeterministic-v4 --act_policy bayesian
 ```
 
 ## Citing
