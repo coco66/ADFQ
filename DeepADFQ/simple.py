@@ -19,12 +19,12 @@ import models
 import baselines.common.tf_util as U
 from baselines import logger
 from baselines.common.schedules import LinearSchedule
-from replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
-from utils import BatchInput, load_state, save_state
-#from baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
-#from baselines.deepq.utils import BatchInput, load_state, save_state
+#from replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
+#from utils import BatchInput, load_state, save_state
+from baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
+from baselines.deepq.utils import BatchInput, load_state, save_state
 
-from BRL.brl_util_new import posterior_adfq, posterior_adfq_v2
+from brl_util import posterior_adfq, posterior_adfq_v2
 
 
 class ActWrapper(object):
