@@ -96,7 +96,7 @@ def train():
             gpu_memory = args.gpu_memory,
             varTH=args.varth,
             act_policy=args.act_policy,
-            directory=directory,
+            save_dir=directory,
             nb_step_bound = args.nb_step_bound, 
         )
         print("Saving model to model.pkl")

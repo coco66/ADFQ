@@ -85,7 +85,8 @@ def main():
             directory=directory,
             nb_step_bound = args.nb_step_bound
         )
-
+        print("Saving model to model.pkl")
+        act.save(os.path.join(args.log_dir,"model.pkl"))
     env.close()
     plot(records)
 
