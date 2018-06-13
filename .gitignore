@@ -1,3 +1,6 @@
+DeepADFQ/*.pyc
+results
+DeepADFQ/results
 optQ
 *.png
 *.pyc
