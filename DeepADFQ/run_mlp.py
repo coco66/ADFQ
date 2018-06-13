@@ -24,7 +24,7 @@ parser.add_argument('--nb_step_warmup', type=int, default = 1000)
 parser.add_argument('--epoch_steps', type=int, default = 1000)
 parser.add_argument('--target_update_freq', type=int, default=500) # This should be smaller than epoch_steps
 parser.add_argument('--nb_step_bound',type=int, default = None)
-parser.add_argument('--learning_rate', type=float, default=0.00025)
+parser.add_argument('--learning_rate', type=float, default=0.0005)
 parser.add_argument('--gamma', type=float, default=.99)
 parser.add_argument('--log_dir', type=str, default='.')
 parser.add_argument('--eps_max', type=float, default=0.1)
@@ -37,7 +37,7 @@ parser.add_argument('--act_policy', choices=['egreedy','bayesian'], default='egr
 parser.add_argument('--record',type=int, default=0)
 parser.add_argument('--gpu_memory',type=float, default=1.0)
 parser.add_argument('--varth', type=float,default=1e-5)
-parser.add_argument('--noise', type=float,default=1e-5)
+parser.add_argument('--noise', type=float,default=0.0)
 
 args = parser.parse_args()
 
@@ -87,7 +87,7 @@ def train():
         )
         print("Saving model to model.pkl")
         act.save(os.path.join(directory,"model.pkl"))
-    plot(records)
+    plot(records, directory)
         
 def test():
     env = gym.make(args.env)
@@ -102,38 +102,37 @@ def test():
             episode_rew += rew
         print("Episode reward", episode_rew)
 
-def plot(records):
+def plot(records, directory):
     import matplotlib.pyplot as plt
     m = len(records['q_mean'])
     x_vals = range(0 , args.epoch_steps*m, args.epoch_steps)
     
-    plt.figure(0)
-    plt.plot(x_vals, records['q_mean'])
-    plt.ylabel('Average Q means')
-    plt.xlabel('Learning Steps')
+    f0, ax0 = plt.subplots(3, sharex=True, sharey=False)
+    ax0[0].plot(x_vals, records['q_mean'])
+    ax0[0].set_ylabel('Average Q means')
 
-    plt.figure(1)
-    plt.plot(x_vals, np.log(records['q_sd']))
-    plt.ylabel('Log of Average Q SD')
-    plt.xlabel('Learning Steps')
+    ax0[1].plot(x_vals, np.log(records['q_sd']))
+    ax0[1].set_ylabel('Log of Average Q SD')
 
-    plt.figure(2)
-    plt.plot(x_vals, records['online_reward'])
-    plt.ylabel('Average recent 100 rewards')
-    plt.xlabel('Learning Steps')
+    ax0[2].plot(x_vals, records['loss'])
+    ax0[2].set_ylabel('Loss')
+    ax0[2].xlabel('Learning Steps')
 
-    plt.figure(3)
-    plt.plot(x_vals, records['loss'])
-    plt.ylabel('Loss')
-    plt.xlabel('Learning Steps')
+    f1, ax1 = plt.subplots()
+    ax1.plot(x_vals, records['online_reward'])
+    ax1.set_ylabel('Average recent 100 rewards')
+    ax1.set_xlabel('Learning Steps')
 
-    plt.figure(4)
+    f2, ax2 = plt.subplots()
     m, ids25, ids75 = simple.iqr(np.array(records['test_reward']).T)
-    plt.plot(x_vals, m, color='b')
-    plt.fill_between(x_vals, list(ids75), list(ids25), facecolor='b', alpha=0.2)
-    plt.ylabel('Test Rewards')
-    plt.xlabel('Learning Steps')
-    plt.show()
+    ax2.plot(x_vals, m, color='b')
+    ax2.fill_between(x_vals, list(ids75), list(ids25), facecolor='b', alpha=0.2)
+    ax2.set_ylabel('Test Rewards')
+    ax2.set_xlabel('Learning Steps')
+
+    f0.savefig(os.path.join(directory, "result.png"))
+    f1.savefig(os.path.join(directory, "online_reward.png"))
+    f2.savefig(os.path.join(directory, "test_reward.png"))
 
 if __name__ == '__main__':
     if args.mode == 'train':

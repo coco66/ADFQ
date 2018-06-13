@@ -120,36 +120,35 @@ def test():
 
 def plot(records):
     import matplotlib.pyplot as plt
-    m = len(records['online_reward'])
+    m = len(records['q_mean'])
     x_vals = range(0 , args.epoch_steps*m, args.epoch_steps)
+    
+    f0, ax0 = plt.subplots(3, sharex=True, sharey=False)
+    ax0[0].plot(x_vals, records['q_mean'])
+    ax0[0].set_ylabel('Average Q means')
 
-    plt.figure(0)
-    plt.plot(x_vals, records['q_mean'])
-    plt.ylabel('Average Q means')
-    plt.xlabel('Learning Steps')
+    ax0[1].plot(x_vals, np.log(records['q_sd']))
+    ax0[1].set_ylabel('Log of Average Q SD')
 
-    plt.figure(1)
-    plt.plot(x_vals, np.log(records['q_sd']))
-    plt.ylabel('Log of Average Q SD')
-    plt.xlabel('Learning Steps')
+    ax0[2].plot(x_vals, records['loss'])
+    ax0[2].set_ylabel('Loss')
+    ax0[2].xlabel('Learning Steps')
 
-    plt.figure(2)
-    plt.plot(x_vals, records['online_reward'])
-    plt.ylabel('Average recent 100 rewards')
-    plt.xlabel('Learning Steps')
+    f1, ax1 = plt.subplots()
+    ax1.plot(x_vals, records['online_reward'])
+    ax1.set_ylabel('Average recent 100 rewards')
+    ax1.set_xlabel('Learning Steps')
 
-    plt.figure(3)
-    plt.plot(x_vals, records['loss'])
-    plt.ylabel('Loss')
-    plt.xlabel('Learning Steps')
-
-    plt.figure(4)
+    f2, ax2 = plt.subplots()
     m, ids25, ids75 = simple.iqr(np.array(records['test_reward']).T)
-    plt.plot(x_vals, m, color='b')
-    plt.fill_between(x_vals, list(ids75), list(ids25), facecolor='b', alpha=0.2)
-    plt.ylabel('Test Rewards')
-    plt.xlabel('Learning Steps')
-    plt.show()
+    ax2.plot(x_vals, m, color='b')
+    ax2.fill_between(x_vals, list(ids75), list(ids25), facecolor='b', alpha=0.2)
+    ax2.set_ylabel('Test Rewards')
+    ax2.set_xlabel('Learning Steps')
+
+    f0.savefig(os.path.join(directory, "result.png"))
+    f1.savefig(os.path.join(directory, "online_reward.png"))
+    f2.savefig(os.path.join(directory, "test_reward.png"))
 
 if __name__ == '__main__':
     if args.mode == 'train':

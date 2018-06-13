@@ -92,26 +92,29 @@ def main():
 def plot(records):
     import matplotlib.pyplot as plt
     import numpy as np
-    m = len(records['online_reward'])
+    m = len(records['q_mean'])
     x_vals = range(0 , args.epoch_steps*m, args.epoch_steps)
     
-    plt.figure(0)
-    plt.plot(x_vals, records['online_reward'])
-    plt.ylabel('Average recent 100 rewards')
-    plt.xlabel('Learning Steps')
+    f0, ax0 = plt.subplots()
+    ax0.plot(x_vals, records['loss'])
+    ax0.set_ylabel('Loss')
+    ax0.xlabel('Learning Steps')
 
-    plt.figure(1)
-    plt.plot(x_vals, records['loss'])
-    plt.ylabel('Loss')
-    plt.xlabel('Learning Steps')
+    f1, ax1 = plt.subplots()
+    ax1.plot(x_vals, records['online_reward'])
+    ax1.set_ylabel('Average recent 100 rewards')
+    ax1.set_xlabel('Learning Steps')
 
-    plt.figure(2)
-    m, ids25, ids75 = deepq.simple.iqr(np.array(records['test_reward']).T)
-    plt.plot(x_vals, m, color='b')
-    plt.fill_between(x_vals, list(ids75), list(ids25), facecolor='b', alpha=0.2)
-    plt.ylabel('Test Rewards')
-    plt.xlabel('Learning Steps')
-    plt.show()
+    f2, ax2 = plt.subplots()
+    m, ids25, ids75 = simple.iqr(np.array(records['test_reward']).T)
+    ax2.plot(x_vals, m, color='b')
+    ax2.fill_between(x_vals, list(ids75), list(ids25), facecolor='b', alpha=0.2)
+    ax2.set_ylabel('Test Rewards')
+    ax2.set_xlabel('Learning Steps')
+
+    f0.savefig(os.path.join(directory, "result.png"))
+    f1.savefig(os.path.join(directory, "online_reward.png"))
+    f2.savefig(os.path.join(directory, "test_reward.png"))
 
 if __name__ == '__main__':
     main()
