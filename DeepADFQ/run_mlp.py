@@ -103,7 +103,9 @@ def test():
         print("Episode reward", episode_rew)
 
 def plot(records, directory):
-    import matplotlib.pyplot as plt
+    import matplotlib
+    matplotlib.use('Agg')
+    from matplotlib import pyplot as plt
     m = len(records['q_mean'])
     x_vals = range(0 , args.epoch_steps*m, args.epoch_steps)
     
@@ -116,7 +118,7 @@ def plot(records, directory):
 
     ax0[2].plot(x_vals, records['loss'])
     ax0[2].set_ylabel('Loss')
-    ax0[2].xlabel('Learning Steps')
+    ax0[2].set_xlabel('Learning Steps')
 
     f1, ax1 = plt.subplots()
     ax1.plot(x_vals, records['online_reward'])

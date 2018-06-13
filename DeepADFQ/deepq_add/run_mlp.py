@@ -77,7 +77,7 @@ def train():
         )
         print("Saving model to model.pkl")
         act.save(os.path.join(directory,"model.pkl"))
-    plot(records)
+    plot(records, directory)
         
 def test():
     env = gym.make(args.env)
@@ -92,8 +92,10 @@ def test():
             episode_rew += rew
         print("Episode reward", episode_rew)
 
-def plot(records):
-    import matplotlib.pyplot as plt
+def plot(records, directory):
+    import matplotlib
+    matplotlib.use('Agg')
+    from matplotlib import pyplot as plt
     import numpy as np
     m = len(records['q_mean'])
     x_vals = range(0 , args.epoch_steps*m, args.epoch_steps)
@@ -101,7 +103,7 @@ def plot(records):
     f0, ax0 = plt.subplots()
     ax0.plot(x_vals, records['loss'])
     ax0.set_ylabel('Loss')
-    ax0.xlabel('Learning Steps')
+    ax0.set_xlabel('Learning Steps')
 
     f1, ax1 = plt.subplots()
     ax1.plot(x_vals, records['online_reward'])

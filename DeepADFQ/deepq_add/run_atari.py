@@ -88,9 +88,9 @@ def main():
         print("Saving model to model.pkl")
         act.save(os.path.join(args.log_dir,"model.pkl"))
     env.close()
-    plot(records)
+    plot(records, directory)
 
-def plot(records):
+def plot(records, directory):
     import matplotlib.pyplot as plt
     import numpy as np
     m = len(records['q_mean'])
@@ -99,7 +99,7 @@ def plot(records):
     f0, ax0 = plt.subplots()
     ax0.plot(x_vals, records['loss'])
     ax0.set_ylabel('Loss')
-    ax0.xlabel('Learning Steps')
+    ax0.set_xlabel('Learning Steps')
 
     f1, ax1 = plt.subplots()
     ax1.plot(x_vals, records['online_reward'])
