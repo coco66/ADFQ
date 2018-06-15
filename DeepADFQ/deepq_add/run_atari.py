@@ -93,7 +93,7 @@ def main():
 def plot(records, directory):
     import matplotlib.pyplot as plt
     import numpy as np
-    m = len(records['q_mean'])
+    m = len(records['loss'])
     x_vals = range(0 , args.epoch_steps*m, args.epoch_steps)
     
     f0, ax0 = plt.subplots()
