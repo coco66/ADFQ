@@ -37,7 +37,7 @@ class ActWrapper(object):
         with open(path, "rb") as f:
             model_data, act_params = cloudpickle.load(f)
         #act = build_graph.build_act(**act_params)
-        act = build_graph.build_act(reuse=None, **act_params)
+        act = build_graph.build_act_greedy(reuse=None, **act_params)
         sess = tf.Session()
         sess.__enter__()
         with tempfile.TemporaryDirectory() as td:
