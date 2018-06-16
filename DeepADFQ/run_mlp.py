@@ -91,7 +91,7 @@ def train():
         
 def test():
     env = gym.make(args.env)
-    act = simple.load(os.path.join(args.log_dir, "model.pkl"))
+    act = simple.load(args.log_dir)
 
     while True:
         obs, done = env.reset(), False

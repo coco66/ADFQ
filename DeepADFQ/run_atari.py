@@ -50,7 +50,7 @@ def train():
     logger.configure()
     set_global_seeds(args.seed)
 
-    directory = os.path.join(args.log_dir, datetime.datetime.now().strftime("%m%d%H%M"))
+    directory = os.path.join(args.log_dir, '_'.join([args.env, datetime.datetime.now().strftime("%m%d%H%M")]))
     if not os.path.exists(directory):
             os.makedirs(directory)
     else:
@@ -83,7 +83,7 @@ def train():
             exploration_final_eps=args.eps_min,
             train_freq=4,
             print_freq=1000,
-            checkpoint_freq=args.epoch_steps,
+            checkpoint_freq=int(args.nb_train_steps/10),
             learning_starts=args.nb_step_warmup,
             target_network_update_freq=args.target_update_freq,
             gamma=0.99,
@@ -105,9 +105,9 @@ def train():
     env.close()
 
 def test():
-    env = make.atari(args.env)
+    env = make_atari(args.env)
     env = models.wrap_atari_dqn(env)
-    act = simple.load("model.pkl")
+    act = simple.load(args.log_dir)
 
     while True:
         obs, done = env.reset(), False

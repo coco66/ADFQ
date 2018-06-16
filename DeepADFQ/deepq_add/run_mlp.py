@@ -64,7 +64,7 @@ def train():
             exploration_fraction=0.1,
             exploration_final_eps=0.02,
             print_freq=10,
-            checkpoint_freq=args.epoch_steps,
+            checkpoint_freq=int(args.nb_train_steps/10),
             learning_starts=args.nb_step_warmup,
             gamma = args.gamma,
             callback=None,#callback,
@@ -81,7 +81,7 @@ def train():
         
 def test():
     env = gym.make(args.env)
-    act = deepq.load(os.path.join(args.log_dir, "model.pkl"))
+    act = deepq.load(args.log_dir)
 
     while True:
         obs, done = env.reset(), False

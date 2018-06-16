@@ -13,36 +13,38 @@ from baselines.common.atari_wrappers import make_atari
 import tensorflow as tf
 import datetime, json, os
 
-def main():
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--env', help='environment ID', default='BreakoutNoFrameskip-v4')
-    parser.add_argument('--seed', help='RNG seed', type=int, default=0)
-    parser.add_argument('--prioritized', type=int, default=1)
-    parser.add_argument('--prioritized-replay-alpha', type=float, default=0.6)
-    parser.add_argument('--dueling', type=int, default=0)
-    parser.add_argument('--num_timesteps', type=int, default=int(3*1e6))
-    parser.add_argument('--batch_size', type=int, default=32)
-    parser.add_argument('--nb_steps_warmup', type=int, default = 10000)
-    parser.add_argument('--epoch_steps', type=int, default = 20000)
-    parser.add_argument('--target_update_freq', type=int, default=1000)
-    parser.add_argument('--nb_step_bound',type=int, default = 10000)
-    parser.add_argument('--learning_rate', type=float, default=0.00025)
-    parser.add_argument('--gamma', type=float, default=.99)
-    parser.add_argument('--log_dir', type=str, default='.')
-    parser.add_argument('--buffer_size', type=int, default=10000)
-    parser.add_argument('--eps_max', type=float, default=0.1)
-    parser.add_argument('--eps_min', type=float, default=.01)
-    parser.add_argument('--double_q', type=int, default=0)
-    parser.add_argument('--device', type=str, default='/gpu:0')
-    parser.add_argument('--record',type=int, default=0)
-    parser.add_argument('--scope',type=str, default='deepq')
-    parser.add_argument('--gpu_memory',type=float, default=1.0)
+parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument('--env', help='environment ID', default='BreakoutNoFrameskip-v4')
+parser.add_argument('--seed', help='RNG seed', type=int, default=0)
+parser.add_argument('--prioritized', type=int, default=1)
+parser.add_argument('--prioritized-replay-alpha', type=float, default=0.6)
+parser.add_argument('--dueling', type=int, default=0)
+parser.add_argument('--num_timesteps', type=int, default=int(3*1e6))
+parser.add_argument('--batch_size', type=int, default=32)
+parser.add_argument('--nb_steps_warmup', type=int, default = 10000)
+parser.add_argument('--epoch_steps', type=int, default = 20000)
+parser.add_argument('--target_update_freq', type=int, default=1000)
+parser.add_argument('--nb_step_bound',type=int, default = 10000)
+parser.add_argument('--learning_rate', type=float, default=0.00025)
+parser.add_argument('--gamma', type=float, default=.99)
+parser.add_argument('--log_dir', type=str, default='.')
+parser.add_argument('--buffer_size', type=int, default=10000)
+parser.add_argument('--eps_max', type=float, default=0.1)
+parser.add_argument('--eps_min', type=float, default=.01)
+parser.add_argument('--double_q', type=int, default=0)
+parser.add_argument('--device', type=str, default='/gpu:0')
+parser.add_argument('--record',type=int, default=0)
+parser.add_argument('--scope',type=str, default='deepq')
+parser.add_argument('--gpu_memory',type=float, default=1.0)
 
-    args = parser.parse_args()
+args = parser.parse_args()
+
+def main():
+   
     logger.configure()
     set_global_seeds(args.seed)
 
-    directory = datetime.datetime.now().strftime("%m%d%H%M")
+    directory = os.path.join(args.log_dir, '_'.join([args.env, datetime.datetime.now().strftime("%m%d%H%M")]))
     if not os.path.exists(directory):
             os.makedirs(directory)
     else:
@@ -72,7 +74,7 @@ def main():
             exploration_final_eps=args.eps_min,
             train_freq=4,
             print_freq=1000,
-            checkpoint_freq=args.epoch_steps,
+            checkpoint_freq=int(args.nb_train_steps/10),
             learning_starts=args.nb_steps_warmup,
             target_network_update_freq=args.target_update_freq,
             gamma=0.99,
@@ -89,6 +91,20 @@ def main():
         act.save(os.path.join(args.log_dir,"model.pkl"))
     env.close()
     plot(records, directory)
+
+def test():
+    env = make_atari(args.env)
+    env = models.wrap_atari_dqn(env)
+    act = simple.load(args.log_dir)
+
+    while True:
+        obs, done = env.reset(), False
+        episode_rew = 0
+        while not done:
+            env.render()
+            obs, rew, done, _ = env.step(act(obs[None])[0])
+            episode_rew += rew
+        print("Episode reward", episode_rew)
 
 def plot(records, directory):
     import matplotlib.pyplot as plt
