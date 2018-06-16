@@ -9,6 +9,7 @@ import simple
 import numpy as np
 import tensorflow as tf
 import datetime, json, os, argparse
+from gym.wrappers import Monitor
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--env', help='environment ID', default='CartPole-v0')
@@ -27,6 +28,7 @@ parser.add_argument('--nb_step_bound',type=int, default = None)
 parser.add_argument('--learning_rate', type=float, default=0.0005)
 parser.add_argument('--gamma', type=float, default=.99)
 parser.add_argument('--log_dir', type=str, default='.')
+parser.add_argument('--log_fname', type=str, default='model.pkl')
 parser.add_argument('--eps_max', type=float, default=0.1)
 parser.add_argument('--eps_min', type=float, default=.02)
 parser.add_argument('--init_mean', type =float, default=1.)
@@ -71,7 +73,7 @@ def train():
             exploration_final_eps=0.02,
             target_network_update_freq=500,
             print_freq=10,
-            checkpoint_freq=args.epoch_steps,
+            checkpoint_freq=int(args.nb_train_steps/10),
             learning_starts=args.nb_step_warmup,
             gamma=args.gamma,
             callback=callback,
@@ -91,8 +93,10 @@ def train():
         
 def test():
     env = gym.make(args.env)
-    act = simple.load(args.log_dir)
-
+    act = simple.load(os.path.join(args.log_dir, args.log_fname))
+    if args.record:
+        env = Monitor(env, directory=args.log_dir)
+        
     while True:
         obs, done = env.reset(), False
         episode_rew = 0

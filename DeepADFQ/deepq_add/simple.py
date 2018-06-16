@@ -35,7 +35,7 @@ class ActWrapper(object):
         with open(path, "rb") as f:
             model_data, act_params = cloudpickle.load(f)
         #act = deepq.build_act(**act_params)
-        act = deeq.build_act(**act_params)
+        act = deepq.build_act(**act_params)
         sess = tf.Session()
         sess.__enter__()
         with tempfile.TemporaryDirectory() as td:
@@ -371,20 +371,3 @@ def test(env_name, act_greedy, nb_itrs=5, nb_step_bound=10000):
         total_rewards.append(episode_rewards)
 
     return np.array(total_rewards, dtype=np.float32)
-
-def iqr(x):
-    """Interquantiles
-    x has to be a 2D np array. The interquantiles are computed along with the axis 1
-    """
-    i25 = int(0.25*x.shape[0])
-    i75 = int(0.75*x.shape[0])
-    x=x.T
-    ids25=[]
-    ids75=[]
-    m = []
-    for y in x:
-        tmp = np.sort(y)
-        ids25.append(tmp[i25])
-        ids75.append(tmp[i75])
-        m.append(np.mean(tmp,dtype=np.float32))
-    return m, ids25, ids75

@@ -13,6 +13,7 @@ import simple
 import tensorflow as tf
 import numpy as np
 import os, datetime, json
+from gym.wrappers import Monitor
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--env', help='environment ID', default='BreakoutNoFrameskip-v4')
@@ -30,6 +31,7 @@ parser.add_argument('--target_update_freq', type=int, default=1000)
 parser.add_argument('--learning_rate', type=float, default=0.00025)
 parser.add_argument('--gamma', type=float, default=.99)
 parser.add_argument('--log_dir', type=str, default='.')
+parser.add_argument('--log_fname', type=str, default='model.pkl')
 parser.add_argument('--buffer_size', type=int, default=10000)
 parser.add_argument('--eps_max', type=float, default=0.1)
 parser.add_argument('--eps_min', type=float, default=.01)
@@ -107,7 +109,9 @@ def train():
 def test():
     env = make_atari(args.env)
     env = models.wrap_atari_dqn(env)
-    act = simple.load(args.log_dir)
+    act = simple.load(os.path.join(args.log_dir, args.log_fname))
+    if args.record:
+        env = Monitor(env, directory=args.log_dir)
 
     while True:
         obs, done = env.reset(), False
