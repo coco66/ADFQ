@@ -23,7 +23,7 @@ from baselines.deepq.utils import BatchInput, load_state, save_state
 from baselines import bench
 from baselines import deepq
 from baselines.common.atari_wrappers import make_atari
-
+from baselines.deepq.build_graph import build_act_greedy
 
 class ActWrapper(object):
     def __init__(self, act, act_params):
@@ -35,7 +35,7 @@ class ActWrapper(object):
         with open(path, "rb") as f:
             model_data, act_params = cloudpickle.load(f)
         #act = deepq.build_act(**act_params)
-        act = deepq.build_act_greedy(**act_params)
+        act = build_act_greedy(reuse = None, **act_params)
         sess = tf.Session()
         sess.__enter__()
         with tempfile.TemporaryDirectory() as td:

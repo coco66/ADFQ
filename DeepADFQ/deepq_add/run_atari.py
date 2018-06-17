@@ -17,6 +17,7 @@ from gym.wrappers import Monitor
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--env', help='environment ID', default='BreakoutNoFrameskip-v4')
 parser.add_argument('--seed', help='RNG seed', type=int, default=0)
+parser.add_argument('--mode', choices=['train', 'test'], default='train')
 parser.add_argument('--prioritized', type=int, default=1)
 parser.add_argument('--prioritized-replay-alpha', type=float, default=0.6)
 parser.add_argument('--dueling', type=int, default=0)
@@ -41,7 +42,7 @@ parser.add_argument('--gpu_memory',type=float, default=1.0)
 
 args = parser.parse_args()
 
-def main():
+def train():
    
     logger.configure()
     set_global_seeds(args.seed)
@@ -100,12 +101,13 @@ def test():
     act = deepq.load(os.path.join(args.log_dir, args.log_fname))
     if args.record:
         env = Monitor(env, directory=args.log_dir)
-        
+
     while True:
         obs, done = env.reset(), False
         episode_rew = 0
         while not done:
-            env.render()
+            if not(args.record):
+                env.render()
             obs, rew, done, _ = env.step(act(obs[None])[0])
             episode_rew += rew
         print("Episode reward", episode_rew)
@@ -155,4 +157,7 @@ def iqr(x):
     return m, ids25, ids75
 
 if __name__ == '__main__':
-    main()
+    if args.mode == 'train':
+        train()
+    elif args.mode =='test':
+        test()
