@@ -21,7 +21,7 @@ parser.add_argument('--mode', choices=['train', 'test'], default='train')
 parser.add_argument('--prioritized', type=int, default=1)
 parser.add_argument('--prioritized-replay-alpha', type=float, default=0.6)
 parser.add_argument('--dueling', type=int, default=0)
-parser.add_argument('--num_timesteps', type=int, default=int(3*1e6))
+parser.add_argument('--nb_train_steps', type=int, default=int(3*1e6))
 parser.add_argument('--batch_size', type=int, default=32)
 parser.add_argument('--nb_steps_warmup', type=int, default = 10000)
 parser.add_argument('--epoch_steps', type=int, default = 20000)
@@ -72,7 +72,7 @@ def train():
             env,
             q_func=model,
             lr=args.learning_rate,
-            max_timesteps=args.num_timesteps,
+            max_timesteps=args.nb_train_steps,
             buffer_size=args.buffer_size,
             exploration_fraction=args.eps_max,
             exploration_final_eps=args.eps_min,
