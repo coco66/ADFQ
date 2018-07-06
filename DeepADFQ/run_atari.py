@@ -63,6 +63,8 @@ def train():
     env = bench.Monitor(env, logger.get_dir())
     env = models.wrap_atari_dqn(env)
 
+    nb_step_bound = args.nb_step_bound if args.nb_step_bound > 0 else None
+
     if args.record == 1:
         env = Monitor(env, directory=directory)
     
@@ -99,7 +101,7 @@ def train():
             varTH=args.varth,
             act_policy=args.act_policy,
             save_dir=directory,
-            nb_step_bound = args.nb_step_bound, 
+            nb_step_bound = nb_step_bound, 
         )
         print("Saving model to model.pkl")
         act.save(os.path.join(args.log_dir,"model.pkl"))
