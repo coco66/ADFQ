@@ -10,7 +10,7 @@ import datetime, json, os
 
 from baselines import deepq
 from gym.wrappers import Monitor
-
+import numpy as np
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--env', help='environment ID', default='CartPole-v0')
 parser.add_argument('--seed', help='RNG seed', type=int, default=0)
@@ -22,10 +22,10 @@ parser.add_argument('--dueling', type=int, default=0)
 parser.add_argument('--nb_train_steps', type=int, default=50000)
 parser.add_argument('--buffer_size', type=int, default=50000)
 parser.add_argument('--batch_size', type=int, default=32)
-parser.add_argument('--nb_step_warmup', type=int, default = 1000)
-parser.add_argument('--epoch_steps', type=int, default = 1000)
+parser.add_argument('--nb_warmup_steps', type=int, default = 1000)
+parser.add_argument('--nb_epoch_steps', type=int, default = 1000)
 parser.add_argument('--target_update_freq', type=int, default=500) # This should be smaller than epoch_steps
-parser.add_argument('--nb_step_bound',type=int, default = None)
+parser.add_argument('--nb_test_steps',type=int, default = None)
 parser.add_argument('--learning_rate', type=float, default=1e-3)
 parser.add_argument('--gamma', type=float, default=.99)
 parser.add_argument('--log_dir', type=str, default='.')
@@ -33,7 +33,6 @@ parser.add_argument('--log_fname', type=str, default='model.pkl')
 parser.add_argument('--eps_max', type=float, default=0.1)
 parser.add_argument('--eps_min', type=float, default=.02)
 parser.add_argument('--device', type=str, default='/gpu:0')
-parser.add_argument('--alg', choices=['adfq','adfq-v2'], default='adfq')
 parser.add_argument('--record',type=int, default=0)
 parser.add_argument('--gpu_memory',type=float, default=1.0)
 
@@ -67,15 +66,15 @@ def train():
             exploration_final_eps=0.02,
             print_freq=10,
             checkpoint_freq=int(args.nb_train_steps/10),
-            learning_starts=args.nb_step_warmup,
+            learning_starts=args.nb_warmup_steps,
             gamma = args.gamma,
             callback=None,#callback,
             env_name=args.env,
-            epoch_steps = args.epoch_steps,
+            epoch_steps = args.nb_epoch_steps,
             gpu_memory=args.gpu_memory,
             directory=directory,
             double_q = args.double_q,
-            nb_step_bound=args.nb_step_bound,
+            nb_test_steps=args.nb_test_steps,
         )
         print("Saving model to model.pkl")
         act.save(os.path.join(directory,"model.pkl"))
@@ -90,7 +89,8 @@ def test():
         obs, done = env.reset(), False
         episode_rew = 0
         while not done:
-            env.render()
+            if not(args.record):
+                env.render()
             obs, rew, done, _ = env.step(act(obs[None])[0])
             episode_rew += rew
         print("Episode reward", episode_rew)
@@ -99,9 +99,9 @@ def plot(records, directory):
     import matplotlib
     matplotlib.use('Agg')
     from matplotlib import pyplot as plt
-    import numpy as np
-    m = len(records['q_mean'])
-    x_vals = range(0 , args.epoch_steps*m, args.epoch_steps)
+    
+    m = len(records['loss'])
+    x_vals = range(0 , args.nb_epoch_steps*m, args.nb_epoch_steps)
     
     f0, ax0 = plt.subplots()
     ax0.plot(x_vals, records['loss'])

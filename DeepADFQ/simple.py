@@ -19,11 +19,9 @@ import models
 import baselines.common.tf_util as U
 from baselines import logger
 from baselines.common.schedules import LinearSchedule
-#from replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
-#from utils import BatchInput, load_state, save_state
 from baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
-from baselines.deepq.utils import BatchInput, load_state, save_state
-
+from baselines.common.tf_util import load_state, save_state
+from baselines.deepq.utils import ObservationInput
 from brl_util import posterior_adfq, posterior_adfq_v2
 
 
@@ -117,7 +115,7 @@ def learn(env,
           gpu_memory=1.0,
           act_policy='egreedy',
           save_dir='.',
-          nb_step_bound = 10000
+          nb_test_steps = 10000
           ):
 
     """Train a deepadfq model.
@@ -184,7 +182,7 @@ def learn(env,
     gpu_memory : a fraction of a gpu memory when running multiple programs in the same gpu 
     act_policy : action policy, 'egreedy' or 'bayesian'
     save_dir : path for saving results
-    nb_step_bound : step bound in evaluation
+    nb_test_steps : step bound in evaluation
 
     Returns
     -------
@@ -206,9 +204,8 @@ def learn(env,
     # by cloudpickle when serializing make_obs_ph
     observation_space_shape = env.observation_space.shape
     adfq_func = posterior_adfq if alg == 'adfq' else posterior_adfq_v2
-    #with tf.Session() as sess:
     def make_obs_ph(name):
-        return BatchInput(observation_space_shape, name=name)
+        return ObservationInput(env.observation_space, name=name)#return BatchInput(observation_space_shape, name=name)
 
     act, act_greedy, q_target_vals, train, update_target = build_graph.build_train(sess,
         make_obs_ph=make_obs_ph,
@@ -346,7 +343,7 @@ def learn(env,
                 update_target()
 
             if (t-1) % epoch_steps == 0 and (t-1) > learning_starts:
-                test_reward = test(env_name, act_greedy, nb_step_bound=nb_step_bound)
+                test_reward = test(env_name, act_greedy, nb_test_steps=nb_test_steps)
                 records['test_reward'].append(test_reward)
                 records['q_mean'].append(np.mean(ep_means))
                 records['q_sd'].append(np.mean(ep_sds))
@@ -390,7 +387,7 @@ def learn(env,
 
     return act, records
 
-def test(env_name, act_greedy, nb_itrs=5, nb_step_bound=10000):
+def test(env_name, act_greedy, nb_itrs=5, nb_test_steps=10000):
 
     total_rewards = []
     for _ in range(nb_itrs):
@@ -402,7 +399,7 @@ def test(env_name, act_greedy, nb_itrs=5, nb_step_bound=10000):
             env = make_atari(env_name)
             env = models.wrap_atari_dqn(env)
         obs = env.reset()
-        if nb_step_bound is None:
+        if nb_test_steps is None:
             done = False
             while not done:
                 action = act_greedy(np.array(obs)[None])[0]
@@ -410,7 +407,7 @@ def test(env_name, act_greedy, nb_itrs=5, nb_step_bound=10000):
                 episode_rewards += rew
         else:
             t = 0
-            while(t < nb_step_bound):
+            while(t < nb_test_steps):
                 action = act_greedy(np.array(obs)[None])[0]
                 obs, rew, done, _ = env.step(action)
                 episode_rewards += rew

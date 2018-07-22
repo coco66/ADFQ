@@ -311,7 +311,12 @@ def build_train(sess, make_obs_ph, q_func, num_actions, optimizer, grad_norm_cli
         sd_error = target_sd - sd_selected 
         huber_loss = U.huber_loss(mean_error) + U.huber_loss(sd_error)
         weighted_loss = tf.reduce_mean(huber_loss * importance_weights_ph)
-
+        
+        #kl_loss = tf.contrib.distributions.kl_divergence(
+        #    tf.distributions.Normal(loc=target_means, scale=target_sd),
+        #    tf.distributions.Normal(loc=mean_selected, scale=sd_selected),
+        #    name='kl_loss')
+        #weighted_loss = tf.reduce_mean(kl_loss * importance_weights_ph)
         if grad_norm_clipping is not None:
             gradients = optimizer.compute_gradients(weighted_loss, var_list=q_func_vars)
             for i, (grad, var) in enumerate(gradients):

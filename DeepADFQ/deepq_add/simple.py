@@ -19,11 +19,13 @@ from baselines import logger
 from baselines.common.schedules import LinearSchedule
 from baselines import deepq
 from baselines.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
-from baselines.deepq.utils import BatchInput, load_state, save_state
 from baselines import bench
 from baselines import deepq
 from baselines.common.atari_wrappers import make_atari
 from baselines.deepq.build_graph import build_act_greedy
+from baselines.common.tf_util import load_state, save_state
+from baselines.deepq.utils import ObservationInput
+
 
 class ActWrapper(object):
     def __init__(self, act, act_params):
@@ -115,7 +117,7 @@ def learn(env,
           double_q=False,
           scope="deepq",
           directory='.',
-          nb_step_bound=10000,
+          nb_test_steps=10000,
           ):
     """Train a deepq model.
 
@@ -194,7 +196,7 @@ def learn(env,
     # by cloudpickle when serializing make_obs_ph
     observation_space_shape = env.observation_space.shape
     def make_obs_ph(name):
-        return BatchInput(observation_space_shape, name=name)
+        return ObservationInput(env.observation_space, name=name) #return BatchInput(observation_space_shape, name=name)
 
     act, act_greedy, train, update_target, debug = deepq.build_train(
         make_obs_ph=make_obs_ph,
@@ -273,7 +275,15 @@ def learn(env,
             reset = False
             new_obs, rew, done, _ = env.step(env_action)
             # Store transition in the replay buffer.
-            replay_buffer.add(obs, action, rew, new_obs, float(done))
+            # replay_buffer.add(obs, action, rew, new_obs, float(done))
+            if env_name == 'CartPole-v0':
+                if env._elapsed_steps < 200:
+                # Store transition in the replay buffer.
+                    replay_buffer.add(obs, action, rew, new_obs, float(done))
+                else:
+                    replay_buffer.add(obs, action, rew, new_obs, float(not done))
+            else:
+                replay_buffer.add(obs, action, rew, new_obs, float(done))
             obs = new_obs
 
             episode_rewards[-1] += rew
@@ -306,7 +316,7 @@ def learn(env,
                 update_target()
 
             if (t-1) % epoch_steps == 0 and (t-1) > learning_starts:
-                test_reward = test(env_name, act_greedy, nb_step_bound=nb_step_bound)
+                test_reward = test(env_name, act_greedy, nb_test_steps=nb_test_steps)
                 records['test_reward'].append(test_reward)
                 records['loss'].append(np.mean(ep_losses))
                 records['online_reward'].append(round(np.mean(episode_rewards[-101:-1]), 1))
@@ -341,7 +351,7 @@ def learn(env,
 
     return act, records
 
-def test(env_name, act_greedy, nb_itrs=5, nb_step_bound=10000):
+def test(env_name, act_greedy, nb_itrs=5, nb_test_steps=10000):
 
     total_rewards = []
     for _ in range(nb_itrs):
@@ -353,7 +363,7 @@ def test(env_name, act_greedy, nb_itrs=5, nb_step_bound=10000):
             env = make_atari(env_name)
             env = deepq.wrap_atari_dqn(env)
         obs = env.reset()
-        if nb_step_bound is None:
+        if nb_test_steps is None:
             done = False
             while not done:
                 action = act_greedy(np.array(obs)[None])[0]
@@ -361,7 +371,7 @@ def test(env_name, act_greedy, nb_itrs=5, nb_step_bound=10000):
                 episode_rewards += rew
         else:
             t = 0
-            while(t < nb_step_bound):
+            while(t < nb_test_steps):
                 action = act_greedy(np.array(obs)[None])[0]
                 obs, rew, done, _ = env.step(action)
                 episode_rewards += rew

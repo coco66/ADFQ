@@ -77,7 +77,7 @@ class BRL(object):
     		num_itr : the number of iterations
 		"""
 		if step_bound is None:
-			step_bound = self.env.timeH/util.EVAL_STEPS
+			step_bound = int(self.env.timeH/util.EVAL_STEPS)
 		counts = [] 
 		rewards = []
 		itr = 0 
@@ -206,7 +206,7 @@ class adfq(BRL):
 		s = self.env.reset(self.np_random)
 		self.log_scale = 0.0
 		while(self.step < self.env.timeH):
-			if self.step%(self.env.timeH/util.EVAL_NUM) == 0:
+			if self.step%int(self.env.timeH/util.EVAL_NUM) == 0:
 				self.Q_err.append(self.err())
 
 			a = self.action_selection(s, actionPolicy, actionParam)
@@ -268,7 +268,7 @@ class adfq(BRL):
 			if draw:
 				self.draw(s,a,self.step,r)
 
-			if eval_greedy and ((self.step+1)%(self.env.timeH/util.EVAL_NUM) == 0):
+			if eval_greedy and ((self.step+1)%int(self.env.timeH/util.EVAL_NUM) == 0):
 				count, rew , _, _= self.greedy_policy(lambda x : self.get_action_egreedy(x, util.EVAL_EPS))
 				self.test_counts.append(count)
 				self.test_rewards.append(rew)
@@ -430,7 +430,7 @@ class ktd_Q(BRL):
 		state = self.env.reset(self.np_random)
 		t = 0 # This is "step" in Inv_pendulum and self.step is episode.
 		while( self.step < self.env.timeH):
-			if self.step%(self.env.timeH/util.EVAL_NUM) == 0:
+			if self.step%int(self.env.timeH/util.EVAL_NUM) == 0:
 				self.Q_err.append(self.err())
 
 			if actionPolicy == "active":
@@ -455,7 +455,7 @@ class ktd_Q(BRL):
 			
 			self.visits[state][action] += 1
 			
-			if eval_greedy and ((self.step+1)%(self.env.timeH/util.EVAL_NUM) == 0):
+			if eval_greedy and ((self.step+1)%int(self.env.timeH/util.EVAL_NUM) == 0):
 				count, rew, _, _= self.greedy_policy(lambda x : self.get_action_eps(x, kappa, util.EVAL_EPS))
 				self.test_counts.append(count)
 				self.test_rewards.append(rew)

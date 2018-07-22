@@ -21,10 +21,10 @@ parser.add_argument('--dueling', type=int, default=0)
 parser.add_argument('--nb_train_steps', type=int, default=50000)
 parser.add_argument('--buffer_size', type=int, default=50000)
 parser.add_argument('--batch_size', type=int, default=32)
-parser.add_argument('--nb_step_warmup', type=int, default = 1000)
-parser.add_argument('--epoch_steps', type=int, default = 1000)
+parser.add_argument('--nb_warmup_steps', type=int, default = 1000)
+parser.add_argument('--nb_epoch_steps', type=int, default = 1000)
 parser.add_argument('--target_update_freq', type=int, default=500) # This should be smaller than epoch_steps
-parser.add_argument('--nb_step_bound',type=int, default = None)
+parser.add_argument('--nb_test_steps',type=int, default = None)
 parser.add_argument('--learning_rate', type=float, default=0.0005)
 parser.add_argument('--gamma', type=float, default=.99)
 parser.add_argument('--log_dir', type=str, default='.')
@@ -74,18 +74,18 @@ def train():
             target_network_update_freq=500,
             print_freq=10,
             checkpoint_freq=int(args.nb_train_steps/10),
-            learning_starts=args.nb_step_warmup,
+            learning_starts=args.nb_warmup_steps,
             gamma=args.gamma,
-            callback=callback,
+            callback=None,#callback,
             env_name=args.env,
-            epoch_steps = args.epoch_steps,
+            epoch_steps = args.nb_epoch_steps,
             noise = args.noise,
             varTH=args.varth,
             alg = args.alg,
             gpu_memory=args.gpu_memory,
             act_policy=args.act_policy,
             save_dir=directory,
-            nb_step_bound=args.nb_step_bound,
+            nb_test_steps=args.nb_test_steps,
         )
         print("Saving model to model.pkl")
         act.save(os.path.join(directory,"model.pkl"))
@@ -111,7 +111,7 @@ def plot(records, directory):
     matplotlib.use('Agg')
     from matplotlib import pyplot as plt
     m = len(records['q_mean'])
-    x_vals = range(0 , args.epoch_steps*m, args.epoch_steps)
+    x_vals = range(0 , args.nb_epoch_steps*m, args.nb_epoch_steps)
     
     f0, ax0 = plt.subplots(3, sharex=True, sharey=False)
     ax0[0].plot(x_vals, records['q_mean'])

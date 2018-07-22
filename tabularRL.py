@@ -31,12 +31,15 @@ class Tabular(object):
 		self.discount = discount
 		self.states, self.actions, self.rewards = [],[],[]
 		self.visits = np.zeros((self.env.snum, self.env.anum),dtype=np.int)
-		self.Q = initQ*np.ones((self.env.snum, self.env.anum),dtype=float)
+		
 		self.np_random, _  = seeding.np_random(None) 
 		self.test_counts = []
 		self.test_rewards = []
+		self.dim = (self.env.snum, self.env.anum)
 		if initQ is None:
 			self.init_params()
+		else:
+			self.Q = initQ*np.ones(self.dim,dtype=float)
 		
 		self.Q_err = []
 		self.memory_size = memory_size
@@ -75,13 +78,13 @@ class Tabular(object):
 			rew, s_n, done = self.env.observe(s,a,self.np_random)
 			if rew > 0: # First nonzero reward
 				if self.env.episodic:
-					self.Q = rew*np.ones(self.Q.shape,dtype=np.float)
+					self.Q = rew*np.ones(self.dim,dtype=np.float)
 				else:
-					self.Q = rew/(1-self.discount)*np.ones(self.Q.shape, dtype=np.float)
+					self.Q = rew/(1-self.discount)*np.ones(self.dim, dtype=np.float)
 				break
 			else:
 				if done:
-					self.Q = np.zeros(self.Q.shape,dtype=np.float)
+					self.Q = np.zeros(self.dim,dtype=np.float)
 					break
 			s = s_n
 
@@ -135,7 +138,7 @@ class Tabular(object):
     		num_itr : the number of iterations
 		"""
 		if step_bound is None:
-			step_bound = self.env.timeH/util.EVAL_STEPS
+			step_bound = int(self.env.timeH/util.EVAL_STEPS)
 		counts = [] 
 		rewards = []
 		itr = 0 
@@ -190,11 +193,11 @@ class Tabular(object):
 			return np.argmax(self.Q[state])
 
 class Qlearning(Tabular):
-	def __init__(self,scene,alpha,discount,initQ=None, TH=None, memory_size=50):
-		Tabular.__init__(self,scene,discount,initQ, TH, memory_size )
+	def __init__(self,scene,alpha,discount,initQ=None, TH=None):
+		Tabular.__init__(self,scene,discount,initQ, TH )
 		self.alpha = alpha # Learning Rate
 
-	def learning(self, actionPolicy, actionParam, eval_greedy = False, draw = False, rate_decay=True, batch_size=0):
+	def learning(self, actionPolicy, actionParam, eval_greedy = False, draw = False, rate_decay=True):
 		"""train with Q-learning
 		Parameters
 		----------
@@ -203,43 +206,28 @@ class Qlearning(Tabular):
 			eval_greedy: True or 1, if you want to evaluate greedily during the learning process
 			draw: True or 1, if you want visualization
 			rate_decay: learning rate decay 
-			batch_size: batch size			
 		"""
 		if len(self.rewards)==self.env.timeH:
 			print("The object has already learned")
 			return None
 
-		self.step = 0
-
-		if batch_size > 0:
-			s = self.env.reset(self.np_random)
-			while(len(self.replayMem[(0,0)]) < self.memory_size):
-				a = np.random.choice(self.env.anum)
-				r, s_n, done = self.env.observe(s,a,self.np_random)
-				self.store({'state':s, 'action':a, 'reward':r, 'state_n':s_n, 'terminal':done})
-		state = self.env.reset(self.np_random)
 		self.Q_target = self.env.optQ(self.discount)
+		self.step = 0
+		state = self.env.reset(self.np_random)
 		n_0 = round(0.01 * self.env.timeH /self.alpha / (1-0.01/self.alpha))
-		Q_history = []
 		while (self.step < self.env.timeH) :
 			
-			if self.step%(self.env.timeH/util.EVAL_NUM) == 0:
+			if self.step%int(self.env.timeH/util.EVAL_NUM) == 0:
 				self.Q_err.append(self.err())
-				Q_history.append(copy.deepcopy(self.Q))
 
 			action = self.action_selection(state, actionPolicy, actionParam)
 			reward, state_n, done = self.env.observe(state,action,self.np_random)
 
-			if batch_size > 0:
-				self.store({'state':state, 'action':action, 'reward':reward, 'state_n':state_n, 'terminal':done})
-				batch = self.get_batch(state, action, batch_size)
-				target = np.mean( np.array(batch['reward']) + self.discount* (1 - np.array(batch['terminal'], dtype=int)) * np.max(self.Q[batch['state_n'],:], axis=-1))			
-			else:
-				self.states.append(state)
-				self.actions.append(action)
-				self.visits[state][action] += 1
-				self.rewards.append(reward)
-				target = reward+self.discount*int(not done)*max(self.Q[state_n])
+			self.states.append(state)
+			self.actions.append(action)
+			self.visits[state][action] += 1
+			self.rewards.append(reward)
+			target = reward+self.discount*int(not done)*max(self.Q[state_n])
 
 			if rate_decay:
 				alpha_t = self.alpha*n_0/(n_0+self.visits[state][action] )
@@ -250,17 +238,15 @@ class Qlearning(Tabular):
 			self.Q[state][action] = new_q
 			
 			if draw:
-				self.draw(state,action,t,reward)
-				pdb.set_trace()
+				self.draw(state,action,self.step,reward)
 
-			if eval_greedy and ((self.step+1)%(self.env.timeH/util.EVAL_NUM) == 0):
+			if eval_greedy and ((self.step+1)%int(self.env.timeH/util.EVAL_NUM) == 0):
 				count, rew, _, _= self.greedy_policy(lambda x : self.get_action_egreedy(x, util.EVAL_EPS))
 				self.test_counts.append(count)
 				self.test_rewards.append(rew)
 
 			state = self.env.reset(self.np_random) if done else state_n
 			self.step += 1
-		self.Q_history = np.array(Q_history)
 
 class MC(Tabular):
 	def __init__(self,scene,discount,initQ, TH=None):
@@ -301,7 +287,7 @@ class MC(Tabular):
 					pdb.set_trace()
 				self.Q[epsiode['state'][i], epsiode['action'][i]] = currQ + 1.0*(G-currQ)/self.visits[epsiode['state'][i], epsiode['action'][i]]
 
-			if eval_greedy and ((self.step+1)%(self.env.timeH/util.EVAL_NUM) == 0):
+			if eval_greedy and ((self.step+1)%int(self.env.timeH/util.EVAL_NUM) == 0):
 				count, rew, _, _= self.greedy_policy(lambda x : self.get_action_egreedy(x, util.EVAL_EPS))
 				self.test_counts.append(count)
 				self.test_rewards.append(rew)

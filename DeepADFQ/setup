@@ -1,0 +1,7 @@
+echo Copying to openAI baselines...
+scp deepq_add/simple.py ../../baselines/baselines/deepq/
+scp deepq_add/build_graph.py ../../baselines/baselines/deepq/
+scp deepq_add/run_mlp.py ../../baselines/baselines/deepq/experiments/
+scp deepq_add/run_atari.py ../../baselines/baselines/deepq/experiments/
+python ../../baselines/baselines/__init__.py
+
