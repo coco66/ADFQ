@@ -1,7 +1,8 @@
 echo Copying to openAI baselines...
-scp deepq_add/simple.py ../../baselines/baselines/deepq/
-scp deepq_add/build_graph.py ../../baselines/baselines/deepq/
-scp deepq_add/run_mlp.py ../../baselines/baselines/deepq/experiments/
-scp deepq_add/run_atari.py ../../baselines/baselines/deepq/experiments/
-python ../../baselines/baselines/__init__.py
+echo Designate the path of your openAI baseline directory here :
+scp deepq_add/simple.py $BASELINE/baselines/deepq/
+scp deepq_add/build_graph.py $BASELINE/baselines/deepq/
+scp deepq_add/run_mlp.py $BASELINE/baselines/deepq/experiments/
+scp deepq_add/run_atari.py $BASELINE/baselines/deepq/experiments/
+python $BASELINE/baselines/__init__.py
 

@@ -26,5 +26,6 @@ RUN rm -rf __pycache__ && \
     find . -name "*.pyc" -delete && \
     pip install -e .[test]
 
+WORKDIR /home/developer/Desktop/docker-code/
 RUN sudo git clone https://github.com/coco66/ADFQ.git
 
