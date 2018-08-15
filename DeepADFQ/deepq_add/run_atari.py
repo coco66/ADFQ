@@ -22,6 +22,7 @@ parser.add_argument('--prioritized', type=int, default=1)
 parser.add_argument('--prioritized-replay-alpha', type=float, default=0.6)
 parser.add_argument('--dueling', type=int, default=0)
 parser.add_argument('--nb_train_steps', type=int, default=int(3*1e6))
+parser.add_argument('--buffer_size', type=int, default=10000)
 parser.add_argument('--batch_size', type=int, default=32)
 parser.add_argument('--nb_warmup_steps', type=int, default = 10000)
 parser.add_argument('--nb_epoch_steps', type=int, default = 20000)
@@ -31,14 +32,14 @@ parser.add_argument('--learning_rate', type=float, default=0.00025)
 parser.add_argument('--gamma', type=float, default=.99)
 parser.add_argument('--log_dir', type=str, default='.')
 parser.add_argument('--log_fname', type=str, default='model.pkl')
-parser.add_argument('--buffer_size', type=int, default=10000)
-parser.add_argument('--eps_max', type=float, default=0.1)
+parser.add_argument('--eps_fraction', type=float, default=0.1)
 parser.add_argument('--eps_min', type=float, default=.01)
 parser.add_argument('--double_q', type=int, default=0)
 parser.add_argument('--device', type=str, default='/gpu:0')
 parser.add_argument('--record',type=int, default=0)
 parser.add_argument('--scope',type=str, default='deepq')
 parser.add_argument('--gpu_memory',type=float, default=1.0)
+parser.add_argument('--repeat', type=int, default=1)
 
 args = parser.parse_args()
 
@@ -74,7 +75,7 @@ def train():
             lr=args.learning_rate,
             max_timesteps=args.nb_train_steps,
             buffer_size=args.buffer_size,
-            exploration_fraction=args.eps_max,
+            exploration_fraction=args.eps_fraction,
             exploration_final_eps=args.eps_min,
             train_freq=4,
             print_freq=1000,
@@ -84,7 +85,6 @@ def train():
             gamma=0.99,
             prioritized_replay=bool(args.prioritized),
             prioritized_replay_alpha=args.prioritized_replay_alpha,
-            env_name = args.env,
             epoch_steps = args.nb_epoch_steps,
             gpu_memory = args.gpu_memory,
             double_q = args.double_q,
@@ -92,7 +92,7 @@ def train():
             nb_test_steps = nb_test_steps
         )
         print("Saving model to model.pkl")
-        act.save(os.path.join(args.log_dir,"model.pkl"))
+        act.save(os.path.join(directory,"model.pkl"))
     env.close()
     plot(records, directory)
 
@@ -161,6 +161,9 @@ def iqr(x):
 
 if __name__ == '__main__':
     if args.mode == 'train':
-        train()
+        i = 0
+        while(i < args.repeat):
+            train()
+            i += 1
     elif args.mode =='test':
         test()

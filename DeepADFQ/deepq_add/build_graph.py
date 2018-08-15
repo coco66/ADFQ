@@ -447,7 +447,7 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=
             optimize_expr = optimizer.apply_gradients(gradients)
         else:
             optimize_expr = optimizer.minimize(weighted_error, var_list=q_func_vars)
-        
+
         # update_target_fn will be called periodically to copy Q network to target Q network
         update_target_expr = []
         for var, var_target in zip(sorted(q_func_vars, key=lambda v: v.name),

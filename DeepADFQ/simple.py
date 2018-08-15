@@ -1,5 +1,5 @@
 """
-This code was modified from a OpenAI baseline code - baselines/baselines/deepq/simple.py 
+This code was modified from a OpenAI baseline code - baselines/baselines/deepq/simple.py for ADFQ
 """
 
 import os
@@ -109,7 +109,6 @@ def learn(env,
           callback=None,
           varTH=1e-05,
           noise = 0.0,
-          env_name = None,
           epoch_steps=20000,
           alg='adfq',
           gpu_memory=1.0,
@@ -177,7 +176,6 @@ def learn(env,
         If callback returns true training stops.
     varTH : variance threshold
     noise : noise for stochastic cases
-    env_name : str, name of the environment (to be used during evaluation)
     alg : 'adfq' or 'adfq-v2'
     gpu_memory : a fraction of a gpu memory when running multiple programs in the same gpu 
     act_policy : action policy, 'egreedy' or 'bayesian'
@@ -215,7 +213,7 @@ def learn(env,
         gamma=gamma,
         grad_norm_clipping=10,
         varTH=varTH,
-        act_policy=act_policy
+        act_policy=act_policy,
     )
 
     act_params = {
@@ -273,14 +271,15 @@ def learn(env,
             env_action = action
             reset = False
             new_obs, rew, done, _ = env.step(env_action)
-            if env_name == 'CartPole-v0':
-                if env._elapsed_steps < 200:
-                # Store transition in the replay buffer.
-                    replay_buffer.add(obs, action, rew, new_obs, float(done))
-                else:
-                    replay_buffer.add(obs, action, rew, new_obs, float(not done))
+            if hasattr(env, 'frames'): # Should be fixed...
+                timelimit_env = env.env.env.env.env.env.env.env.env.env
             else:
+                timelimit_env = env
+            if timelimit_env._elapsed_steps < timelimit_env._max_episode_steps:
+            # Store transition in the replay buffer.
                 replay_buffer.add(obs, action, rew, new_obs, float(done))
+            else:
+                replay_buffer.add(obs, action, rew, new_obs, float(not done))
 
             obs = new_obs
 
@@ -342,15 +341,15 @@ def learn(env,
                 # Update target network periodically.
                 update_target()
 
-            if (t-1) % epoch_steps == 0 and (t-1) > learning_starts:
-                test_reward = test(env_name, act_greedy, nb_test_steps=nb_test_steps)
+            if (t+1) % epoch_steps == 0 and (t+1) > learning_starts:
+                test_reward = test(env, act_greedy, nb_test_steps=nb_test_steps)
                 records['test_reward'].append(test_reward)
                 records['q_mean'].append(np.mean(ep_means))
                 records['q_sd'].append(np.mean(ep_sds))
                 records['loss'].append(np.mean(ep_losses))
                 records['online_reward'].append(round(np.mean(episode_rewards[-101:-1]), 1))
                 pickle.dump(records, open(os.path.join(save_dir,"records.pkl"),"wb"))
-                print("==== EPOCH %d ==="%(t/epoch_steps))
+                print("==== EPOCH %d ==="%((t+1)/epoch_steps))
                 print(tabulate([[k,v[-1]] for (k,v) in records.items()]))
                 
             mean_100ep_reward = round(np.mean(episode_rewards[-101:-1]), 1)
@@ -367,10 +366,10 @@ def learn(env,
                 logger.record_tabular("averaged error sds", np.mean(ep_sd_err[-print_freq:]))
                 logger.dump_tabular()
 
-            if (checkpoint_freq is not None and t > learning_starts and
-                    num_episodes > 100 and t % checkpoint_freq == 0):
-                print("Saving model to model_%d.pkl"%t)
-                act.save(os.path.join(save_dir,"model_"+str(t)+".pkl"))
+            if (checkpoint_freq is not None and (t+1) > learning_starts and
+                    num_episodes > 100 and (t+1) % checkpoint_freq == 0):
+                print("Saving model to model_%d.pkl"%(t+1))
+                act.save(os.path.join(save_dir,"model_"+str(t+1)+".pkl"))
                 if saved_mean_reward is None or mean_100ep_reward > saved_mean_reward:
                     if print_freq is not None:
                         logger.log("Saving model due to mean reward increase: {} -> {}".format(
@@ -380,24 +379,26 @@ def learn(env,
                     model_saved = True
                     saved_mean_reward = mean_100ep_reward
 
-        if model_saved:
-            if print_freq is not None:
-                logger.log("Restored model with mean reward: {}".format(saved_mean_reward))
-            load_state(model_file)
+        # if model_saved:
+        #     if print_freq is not None:
+        #         logger.log("Restored model with mean reward: {}".format(saved_mean_reward))
+        #     load_state(model_file)
 
     return act, records
 
-def test(env_name, act_greedy, nb_itrs=5, nb_test_steps=10000):
+def test(env0, act_greedy, nb_itrs=5, nb_test_steps=10000):
+    while(hasattr(env0, 'env')):
+        env0 = env0.env # TimeLimit
 
     total_rewards = []
     for _ in range(nb_itrs):
         episode_rewards = 0
-        if env_name == 'CartPole-v0':
-            env = gym.make(env_name)
-        else:
+        if hasattr(env0, 'ale'):
             from baselines.common.atari_wrappers import make_atari
-            env = make_atari(env_name)
+            env = make_atari(env0.spec.id)
             env = models.wrap_atari_dqn(env)
+        else:
+            env = gym.make(env0.spec.id)
         obs = env.reset()
         if nb_test_steps is None:
             done = False

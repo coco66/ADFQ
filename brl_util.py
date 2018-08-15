@@ -250,7 +250,7 @@ def posterior_adfq(n_means, n_vars, c_mean, c_var, reward, discount, terminal, v
         return mean_new[0], np.maximum(varTH, var_new[0]), (np.squeeze(stats[:,:,0]), np.squeeze(stats[:,:,1]), np.squeeze(weights))
 
 def posterior_adfq_batch_helper(target_means, target_vars, c_mean, c_var, discount, scale_factor, asymptotic=False):
-    """ADFQ - Numeric posterior update helper function for batch update
+    """ADFQ posterior update helper function for batch update
     """
     batch_stats = []
     for k in range(target_means.shape[0]):
@@ -259,7 +259,7 @@ def posterior_adfq_batch_helper(target_means, target_vars, c_mean, c_var, discou
     return np.array(batch_stats)
 
 def posterior_adfq_helper(target_means, target_vars, c_mean, c_var, discount, scale_factor, asymptotic=False):
-    """ADFQ - Numeric posterior update helper function
+    """ADFQ posterior update helper function
     """
     anum = target_means.shape[-1]
 

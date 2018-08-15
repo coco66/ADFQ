@@ -8,6 +8,8 @@ import argparse
 import tensorflow as tf
 import datetime, json, os
 
+from baselines.common import set_global_seeds
+
 from baselines import deepq
 from gym.wrappers import Monitor
 import numpy as np
@@ -19,7 +21,7 @@ parser.add_argument('--prioritized-replay-alpha', type=float, default=0.6)
 parser.add_argument('--double_q', type=int, default=0)
 parser.add_argument('--mode', choices=['train', 'test'], default='train')
 parser.add_argument('--dueling', type=int, default=0)
-parser.add_argument('--nb_train_steps', type=int, default=50000)
+parser.add_argument('--nb_train_steps', type=int, default=100000)
 parser.add_argument('--buffer_size', type=int, default=50000)
 parser.add_argument('--batch_size', type=int, default=32)
 parser.add_argument('--nb_warmup_steps', type=int, default = 1000)
@@ -30,11 +32,12 @@ parser.add_argument('--learning_rate', type=float, default=1e-3)
 parser.add_argument('--gamma', type=float, default=.99)
 parser.add_argument('--log_dir', type=str, default='.')
 parser.add_argument('--log_fname', type=str, default='model.pkl')
-parser.add_argument('--eps_max', type=float, default=0.1)
+parser.add_argument('--eps_fraction', type=float, default=0.1)
 parser.add_argument('--eps_min', type=float, default=.02)
 parser.add_argument('--device', type=str, default='/gpu:0')
 parser.add_argument('--record',type=int, default=0)
 parser.add_argument('--gpu_memory',type=float, default=1.0)
+parser.add_argument('--repeat', type=int, default=1)
 
 args = parser.parse_args()
 
@@ -45,6 +48,7 @@ def callback(lcl, _glb):
 
 
 def train():
+    set_global_seeds(args.seed)
     directory = os.path.join(args.log_dir, '_'.join([args.env, datetime.datetime.now().strftime("%m%d%H%M")]))
     if not os.path.exists(directory):
             os.makedirs(directory)
@@ -62,14 +66,13 @@ def train():
             lr=args.learning_rate,
             max_timesteps=args.nb_train_steps,
             buffer_size=args.buffer_size,
-            exploration_fraction=0.1,
-            exploration_final_eps=0.02,
+            exploration_fraction=args.eps_fraction,
+            exploration_final_eps=args.eps_min,
             print_freq=10,
             checkpoint_freq=int(args.nb_train_steps/10),
             learning_starts=args.nb_warmup_steps,
             gamma = args.gamma,
             callback=None,#callback,
-            env_name=args.env,
             epoch_steps = args.nb_epoch_steps,
             gpu_memory=args.gpu_memory,
             directory=directory,
@@ -143,7 +146,10 @@ def iqr(x):
 
 if __name__ == '__main__':
     if args.mode == 'train':
-        train()
+        i = 0
+        while(i < args.repeat):
+            train()
+            i += 1
     elif args.mode =='test':
         test()
 

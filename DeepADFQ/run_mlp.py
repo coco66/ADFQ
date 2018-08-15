@@ -1,5 +1,5 @@
 """
-This code was modified from a OpenAI baseline code - baselines/baselines/deepq/experiments/train_cartpole.py 
+This code was modified from a OpenAI baseline code - baselines/baselines/deepq/experiments/train_cartpole.py for running ADFQ
 """
 from baselines.common import set_global_seeds
 
@@ -18,7 +18,7 @@ parser.add_argument('--prioritized', type=int, default=1)
 parser.add_argument('--prioritized-replay-alpha', type=float, default=0.6)
 parser.add_argument('--mode', choices=['train', 'test'], default='train')
 parser.add_argument('--dueling', type=int, default=0)
-parser.add_argument('--nb_train_steps', type=int, default=50000)
+parser.add_argument('--nb_train_steps', type=int, default=100000)
 parser.add_argument('--buffer_size', type=int, default=50000)
 parser.add_argument('--batch_size', type=int, default=32)
 parser.add_argument('--nb_warmup_steps', type=int, default = 1000)
@@ -29,7 +29,7 @@ parser.add_argument('--learning_rate', type=float, default=0.0005)
 parser.add_argument('--gamma', type=float, default=.99)
 parser.add_argument('--log_dir', type=str, default='.')
 parser.add_argument('--log_fname', type=str, default='model.pkl')
-parser.add_argument('--eps_max', type=float, default=0.1)
+parser.add_argument('--eps_fraction', type=float, default=0.1)
 parser.add_argument('--eps_min', type=float, default=.02)
 parser.add_argument('--init_mean', type =float, default=1.)
 parser.add_argument('--init_sd', type=float, default=30.)
@@ -40,6 +40,7 @@ parser.add_argument('--record',type=int, default=0)
 parser.add_argument('--gpu_memory',type=float, default=1.0)
 parser.add_argument('--varth', type=float,default=1e-5)
 parser.add_argument('--noise', type=float,default=0.0)
+parser.add_argument('--repeat', type=int, default=1)
 
 args = parser.parse_args()
 
@@ -69,15 +70,14 @@ def train():
             lr=args.learning_rate,
             max_timesteps=args.nb_train_steps,
             buffer_size=args.buffer_size,
-            exploration_fraction=0.1,
-            exploration_final_eps=0.02,
+            exploration_fraction=args.eps_fraction,
+            exploration_final_eps=args.eps_min,
             target_network_update_freq=500,
             print_freq=10,
             checkpoint_freq=int(args.nb_train_steps/10),
             learning_starts=args.nb_warmup_steps,
             gamma=args.gamma,
             callback=None,#callback,
-            env_name=args.env,
             epoch_steps = args.nb_epoch_steps,
             noise = args.noise,
             varTH=args.varth,
@@ -142,7 +142,10 @@ def plot(records, directory):
 
 if __name__ == '__main__':
     if args.mode == 'train':
-        train()
+        i = 0
+        while(i < args.repeat):
+            train()
+            i += 1
     elif args.mode =='test':
         test()
 
