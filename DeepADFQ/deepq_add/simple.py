@@ -364,7 +364,7 @@ def test(env0, act_greedy, nb_itrs=5, nb_test_steps=10000):
         if hasattr(env0, 'ale'):
             from baselines.common.atari_wrappers import make_atari
             env = make_atari(env0.spec.id)
-            env = models.wrap_atari_dqn(env)
+            env = deepq.wrap_atari_dqn(env)
         else:
             env = gym.make(env0.spec.id)
         obs = env.reset()
