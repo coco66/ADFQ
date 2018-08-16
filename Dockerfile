@@ -24,8 +24,9 @@ WORKDIR /home/developer/Desktop/docker-code/baselines
 
 RUN rm -rf __pycache__ && \
     find . -name "*.pyc" -delete && \
-    pip install -e .[test]
+    sudo pip3 install -e .[test]
 
 WORKDIR /home/developer/Desktop/docker-code/
 RUN sudo git clone https://github.com/coco66/ADFQ.git
-
+RUN sudo scp ADFQ/DeepADFQ/deepq_add/* baselines/baselines/deepq/
+RUN sudo mv baselines/baselines/deepq/run* baselines/baselines/deepq/experiments/
