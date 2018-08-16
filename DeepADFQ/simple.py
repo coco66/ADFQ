@@ -273,10 +273,12 @@ def learn(env,
             env_action = action
             reset = False
             new_obs, rew, done, _ = env.step(env_action)
-            if hasattr(env, 'frames'): # Should be fixed...
-                timelimit_env = env.env.env.env.env.env.env.env.env.env
-            else:
-                timelimit_env = env
+
+            # Store transition in the replay buffer.
+            timelimit_env = env
+            while( not hasattr(timelimit_env, '_elapsed_steps')):
+                timelimit_env = timelimit_env.env
+
             if timelimit_env._elapsed_steps < timelimit_env._max_episode_steps:
             # Store transition in the replay buffer.
                 replay_buffer.add(obs, action, rew, new_obs, float(done))
@@ -389,25 +391,27 @@ def learn(env,
     return act, records
 
 def test(env0, act_greedy, nb_itrs=5, nb_test_steps=10000):
-    while(hasattr(env0, 'env')):
-        env0 = env0.env # TimeLimit
+    
+    env = env0
+    while( hasattr(env, 'env')):
+        env = env.env
 
     total_rewards = []
     for _ in range(nb_itrs):
-        if hasattr(env0, 'ale'):
+        if hasattr(env, 'ale'):
             from baselines.common.atari_wrappers import make_atari
-            env = make_atari(env0.spec.id)
-            env = models.wrap_atari_dqn(env)
+            env_new = make_atari(env.spec.id)
+            env_new = models.wrap_atari_dqn(env_new)
         else:
-            env = gym.make(env0.spec.id)
-        obs = env.reset()
+            env_new = gym.make(env.spec.id)
+        obs = env_new.reset()
 
         if nb_test_steps is None:
             done = False
             episode_reward = 0
             while not done:
                 action = act_greedy(np.array(obs)[None])[0]
-                obs, rew, done, _ = env.step(action)
+                obs, rew, done, _ = env_new.step(action)
                 episode_reward += rew
         else:
             t = 0
@@ -415,12 +419,12 @@ def test(env0, act_greedy, nb_itrs=5, nb_test_steps=10000):
             episode_reward = 0
             while(t < nb_test_steps):
                 action = act_greedy(np.array(obs)[None])[0]
-                obs, rew, done, _ = env.step(action)
+                obs, rew, done, _ = env_new.step(action)
                 episode_reward += rew
                 if done:
                     episodes.append(episode_reward)
                     episode_reward = 0
-                    obs = env.reset()
+                    obs = env_new.reset()
                 t += 1
         total_rewards.append(np.mean(episodes))
 
