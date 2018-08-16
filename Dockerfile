@@ -1,8 +1,8 @@
 FROM nvidia/cuda:9.0-cudnn7-devel-ubuntu16.04
 
-RUN apt-get -y update && apt-get -y upgrade && apt-get -y install sudo git wget python-dev python3-dev libopenmpi-dev python-pip python3-pip zlib1g-dev cmake python-opencv
+RUN apt-get -y update && apt-get -y upgrade && apt-get -y install sudo git wget python-dev python3-dev libopenmpi-dev python-pip python3-pip zlib1g-dev cmake python-opencv tmux
 
-RUN pip3 install pyyaml scipy numpy tensorflow-gpu
+RUN pip3 install pyyaml scipy numpy tensorflow-gpu tabulate
 
 WORKDIR /tmp/
 
@@ -29,4 +29,8 @@ RUN rm -rf __pycache__ && \
 WORKDIR /home/developer/Desktop/docker-code/
 RUN sudo git clone https://github.com/coco66/ADFQ.git
 RUN sudo scp ADFQ/DeepADFQ/deepq_add/* baselines/baselines/deepq/
-RUN sudo mv baselines/baselines/deepq/run* baselines/baselines/deepq/experiments/
+RUN sudo mv baselines/baselines/deepq/run* baselines/baselines/deepq/
+experiments/
+RUN export PYTHONPATH=/home/developer/Desktop/docker-code/ADFQ/:$PYTHONPATH
+
+CMD ['python3', 'baselines/baselines/deepq/__init__.py']

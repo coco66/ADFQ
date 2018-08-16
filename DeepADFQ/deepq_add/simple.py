@@ -361,7 +361,6 @@ def test(env0, act_greedy, nb_itrs=5, nb_test_steps=10000):
 
     total_rewards = []
     for _ in range(nb_itrs):
-        episode_rewards = 0
         if hasattr(env0, 'ale'):
             from baselines.common.atari_wrappers import make_atari
             env = make_atari(env0.spec.id)
@@ -369,21 +368,27 @@ def test(env0, act_greedy, nb_itrs=5, nb_test_steps=10000):
         else:
             env = gym.make(env0.spec.id)
         obs = env.reset()
+
         if nb_test_steps is None:
             done = False
+            episode_reward = 0
             while not done:
                 action = act_greedy(np.array(obs)[None])[0]
                 obs, rew, done, _ = env.step(action)
-                episode_rewards += rew
+                episode_reward += rew
         else:
             t = 0
+            episodes = []
+            episode_reward = 0
             while(t < nb_test_steps):
                 action = act_greedy(np.array(obs)[None])[0]
                 obs, rew, done, _ = env.step(action)
-                episode_rewards += rew
+                episode_reward += rew
                 if done:
+                    episodes.append(episode_reward)
+                    episode_reward = 0
                     obs = env.reset()
                 t += 1
-        total_rewards.append(episode_rewards)
+        total_rewards.append(np.mean(episodes))
 
     return np.array(total_rewards, dtype=np.float32)
