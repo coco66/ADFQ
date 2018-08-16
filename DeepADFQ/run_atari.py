@@ -44,8 +44,9 @@ parser.add_argument('--act_policy', choices=['egreedy','bayesian'], default='egr
 parser.add_argument('--record',type=int, default=0)
 parser.add_argument('--gpu_memory',type=float, default=1.0)
 parser.add_argument('--varth', type=float,default=1e-5)
-parser.add_argument('--noise', type=float,default=1e-5)
+parser.add_argument('--noise', type=float,default=0.0)
 parser.add_argument('--repeat', type=int, default=1)
+parser.add_argument('--scope',type=str, default='deepadfq')
 
 args = parser.parse_args()
 
@@ -103,6 +104,7 @@ def train():
             act_policy=args.act_policy,
             save_dir=directory,
             nb_test_steps = nb_test_steps, 
+            scope = args.scope,
         )
         print("Saving model to model.pkl")
         act.save(os.path.join(directory,"model.pkl"))

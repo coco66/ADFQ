@@ -89,7 +89,8 @@ def train():
             gpu_memory = args.gpu_memory,
             double_q = args.double_q,
             directory=directory,
-            nb_test_steps = nb_test_steps
+            nb_test_steps = nb_test_steps,
+            scope = args.scope,
         )
         print("Saving model to model.pkl")
         act.save(os.path.join(directory,"model.pkl"))

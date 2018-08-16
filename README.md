@@ -12,7 +12,7 @@ Clone the repo
 git clone https://github.com/coco66/ADFQ.git
 ```
 In order to run DeepADFQ, you need OpenAI baselines and its requirements -- python 3 (>=3.5) and tensorflow 1.x (>= 1.3).
-Visit https://github.com/openai/baselines and install OpenAI baselines following the instruction.
+Visit https://github.com/openai/baselines and install OpenAI baselines following the instruction (If you are using GPU with ubuntu, install "pip install -U tensorflow-gpu" and comment out the tensorflow line in the openai/baselines/setup.py before you run "pip install -e ." inside the baselines git repository).
 Then, copy the codes in deepq_add to the baselines repository if you would like to use the evaluation methods presented in the paper, Assumed Density Filtering Q-learning:
 ```
 cd ADFQ/DeepADFQ
@@ -36,7 +36,6 @@ Running ADFQ in an atari game, for example, Asterix-v0
 ```
 python run_atari.py --env AsterixDeterministic-v4 --act_policy bayesian
 ```
-
 ## Citing
 If you use this repo in your research, you can cite it as follows:
 ```bibtex
@@ -49,5 +48,4 @@ If you use this repo in your research, you can cite it as follows:
     howpublished = {\url{https://github.com/coco66/ADFQ.git}},
 }
 
-
-
+```

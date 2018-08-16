@@ -114,7 +114,8 @@ def learn(env,
           gpu_memory=1.0,
           act_policy='egreedy',
           save_dir='.',
-          nb_test_steps = 10000
+          nb_test_steps = 10000,
+          scope = 'deepadfq',
           ):
 
     """Train a deepadfq model.
@@ -214,6 +215,7 @@ def learn(env,
         grad_norm_clipping=10,
         varTH=varTH,
         act_policy=act_policy,
+        scope=scope,
     )
 
     act_params = {
