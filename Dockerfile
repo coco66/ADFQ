@@ -4,7 +4,7 @@ RUN apt-get -y update && apt-get -y upgrade && apt-get -y install sudo git wget 
 
 RUN pip3 install --upgrade pip
 
-RUN pip3 install pyyaml scipy numpy tabulate tensorflow-gpu
+RUN pip3 install pyyaml scipy numpy tabulate tensorflow-gpu matplotlib
 
 WORKDIR /tmp/
 

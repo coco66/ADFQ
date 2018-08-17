@@ -307,7 +307,7 @@ def build_train(sess, make_obs_ph, q_func, num_actions, optimizer, grad_norm_cli
 
         sd_selected = tf.exp(-rho_selected)
 
-        mean_error = target_means-mean_selected
+        mean_error = target_means - mean_selected
         sd_error = target_sd - sd_selected 
         huber_loss = U.huber_loss(mean_error) + U.huber_loss(sd_error)
         weighted_loss = tf.reduce_mean(huber_loss * importance_weights_ph)
