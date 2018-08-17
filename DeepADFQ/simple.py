@@ -219,7 +219,7 @@ def learn(env,
     )
 
     act_params = {
-        'make_obs_ph': make_obs_ph,
+        #'make_obs_ph': make_obs_ph,
         'q_func': q_func,
         'num_actions': env.action_space.n,
     }
