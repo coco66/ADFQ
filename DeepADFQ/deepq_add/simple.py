@@ -378,6 +378,7 @@ def test(env0, act_greedy, nb_itrs=5, nb_test_steps=10000):
                 action = act_greedy(np.array(obs)[None])[0]
                 obs, rew, done, _ = env_new.step(action)
                 episode_reward += rew
+            total_rewards.append(episode_reward)
         else:
             t = 0
             episodes = []
@@ -391,7 +392,7 @@ def test(env0, act_greedy, nb_itrs=5, nb_test_steps=10000):
                     episode_reward = 0
                     obs = env_new.reset()
                 t += 1
-        total_rewards.append(np.mean(episodes))
+            total_rewards.append(np.mean(episodes))
 
     return np.array(total_rewards, dtype=np.float32)
 
