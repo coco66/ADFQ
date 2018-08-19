@@ -117,7 +117,9 @@ def test():
         print("Episode reward %.2f after %d steps"%(episode_rew, t))
 
 def plot(records, directory):
-    import matplotlib.pyplot as plt
+    import matplotlib
+    matplotlib.use('Agg')
+    from matplotlib import pyplot as plt
     import numpy as np
     m = len(records['loss'])
     x_vals = range(0 , args.nb_epoch_steps*m, args.nb_epoch_steps)
