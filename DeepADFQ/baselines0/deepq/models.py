@@ -1,14 +1,8 @@
-"""This code was modified from a OpenAI baseline code - baselines/baselines/deepq/models.py
-"""
 import tensorflow as tf
 import tensorflow.contrib.layers as layers
-import numpy as np
 
-def wrap_atari_dqn(env):
-    from baselines0.common.atari_wrappers import wrap_deepmind
-    return wrap_deepmind(env, frame_stack=True, scale=True)
 
-def _mlp(hiddens, inpt, num_actions, scope, reuse=False, layer_norm=False, init_mean = 1.0, init_sd = 20.0):
+def _mlp(hiddens, inpt, num_actions, scope, reuse=False, layer_norm=False):
     with tf.variable_scope(scope, reuse=reuse):
         out = inpt
         for hidden in hiddens:
@@ -16,19 +10,11 @@ def _mlp(hiddens, inpt, num_actions, scope, reuse=False, layer_norm=False, init_
             if layer_norm:
                 out = layers.layer_norm(out, center=True, scale=True)
             out = tf.nn.relu(out)
-
-        bias_init = [init_mean for _ in range(int(num_actions/2))]
-        bias_init.extend([-np.log(init_sd) for _ in range(int(num_actions/2))])
-        q_out = layers.fully_connected(out, 
-            num_outputs=num_actions, 
-            activation_fn=None,
-            weights_initializer=tf.zeros_initializer(),
-            biases_initializer=tf.constant_initializer(bias_init))
-
+        q_out = layers.fully_connected(out, num_outputs=num_actions, activation_fn=None)
         return q_out
 
 
-def mlp(hiddens=[], layer_norm=False, init_mean = 1.0, init_sd = 20.0):
+def mlp(hiddens=[], layer_norm=False):
     """This model takes as input an observation and returns values of all actions.
 
     Parameters
@@ -41,10 +27,10 @@ def mlp(hiddens=[], layer_norm=False, init_mean = 1.0, init_sd = 20.0):
     q_func: function
         q_function for DQN algorithm.
     """
-    return lambda *args, **kwargs: _mlp(hiddens, layer_norm=layer_norm, init_mean=init_mean, init_sd = init_sd, *args, **kwargs)
+    return lambda *args, **kwargs: _mlp(hiddens, layer_norm=layer_norm, *args, **kwargs)
 
 
-def _cnn_to_mlp(convs, hiddens, dueling, inpt, num_actions, scope, reuse=False, layer_norm=False, init_mean = 1.0, init_sd = 20.0):
+def _cnn_to_mlp(convs, hiddens, dueling, inpt, num_actions, scope, reuse=False, layer_norm=False):
     with tf.variable_scope(scope, reuse=reuse):
         out = inpt
         with tf.variable_scope("convnet"):
@@ -62,14 +48,7 @@ def _cnn_to_mlp(convs, hiddens, dueling, inpt, num_actions, scope, reuse=False, 
                 if layer_norm:
                     action_out = layers.layer_norm(action_out, center=True, scale=True)
                 action_out = tf.nn.relu(action_out)
-            #action_scores = layers.fully_connected(action_out, num_outputs=num_actions, activation_fn=None)
-            bias_init = [init_mean for _ in range(int(num_actions/2))]
-            bias_init.extend([-np.log(init_sd) for _ in range(int(num_actions/2))])
-            action_scores = layers.fully_connected(action_out, 
-                num_outputs=num_actions, 
-                activation_fn=None,
-                weights_initializer=tf.zeros_initializer(),
-                biases_initializer=tf.constant_initializer(bias_init))
+            action_scores = layers.fully_connected(action_out, num_outputs=num_actions, activation_fn=None)
 
         if dueling:
             with tf.variable_scope("state_value"):
@@ -88,7 +67,7 @@ def _cnn_to_mlp(convs, hiddens, dueling, inpt, num_actions, scope, reuse=False, 
         return q_out
 
 
-def cnn_to_mlp(convs, hiddens, dueling=False, layer_norm=False, init_mean = 1.0, init_sd = 20.0):
+def cnn_to_mlp(convs, hiddens, dueling=False, layer_norm=False):
     """This model takes as input an observation and returns values of all actions.
 
     Parameters
@@ -108,5 +87,5 @@ def cnn_to_mlp(convs, hiddens, dueling=False, layer_norm=False, init_mean = 1.0,
         q_function for DQN algorithm.
     """
 
-    return lambda *args, **kwargs: _cnn_to_mlp(convs, hiddens, dueling, layer_norm=layer_norm, init_mean=init_mean, init_sd = init_sd, *args, **kwargs)
+    return lambda *args, **kwargs: _cnn_to_mlp(convs, hiddens, dueling, layer_norm=layer_norm, *args, **kwargs)
 

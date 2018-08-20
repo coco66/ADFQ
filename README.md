@@ -11,16 +11,13 @@ Clone the repo
 ```
 git clone https://github.com/coco66/ADFQ.git
 ```
-In order to run DeepADFQ, you need OpenAI baselines and its requirements -- python 3 (>=3.5) and tensorflow 1.x (>= 1.3).
-Visit https://github.com/openai/baselines and install OpenAI baselines following the instruction (If you are using GPU with ubuntu, install "pip install -U tensorflow-gpu" and comment out the tensorflow line in the openai/baselines/setup.py before you run "pip install -e ." inside the baselines git repository).
-Then, copy the codes in deepq_add to the baselines repository if you would like to use the evaluation methods presented in the paper, Assumed Density Filtering Q-learning:
+In order to run DeepADFQ, you need python 3 (>=3.5) and tensorflow-gpu.
+We include some codes from OpenAI baselines (due to the repository stability issue, we are not directly using the OpenAI baseline git repo). You may need some packages mentioned in the installation guidelines at https://github.com/openai/baselines. 
+
+You need to export python paths:
 ```
-cd ADFQ/DeepADFQ/deepq_add
-scp __init__.py /path/to/baselines/baselines/deepq/
-scp build_graph.py /path/to/baselines/baselines/deepq/
-scp simple.py /path/to/baselines/baselines/deepq/
-scp run_mlp.py /path/to/baselines/baselines/deepq/experiments/
-scp run_atari.py /path/to/baselines/baselines/deepq/experiments/
+export PYTHONPATH=PATH_TO_ADFQ:$PYTHONPATH
+export PYTHONPATH=PATH_TO_ADFQ/DeepADFQ:$PYTHONPATH
 ```
 
 ## Example for running ADFQ algorithm

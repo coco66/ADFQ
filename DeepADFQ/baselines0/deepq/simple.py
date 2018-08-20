@@ -1,7 +1,8 @@
 """
-This code was modified from a OpenAI baseline code - baselines0/baselines0/deepq/simple.py for ADFQ
+This code was slightly modified from the baselines0/baselines0/deepq/simple.py in order to use
+a different evaluation method. In order to run, simply replace the original code with this code
+in the original directory.
 """
-
 import os
 import tempfile
 from tabulate import tabulate
@@ -13,16 +14,16 @@ import cloudpickle
 import numpy as np
 
 import gym
-import build_graph
-import models
-
 import baselines0.common.tf_util as U
+from baselines0.common.tf_util import load_state, save_state
 from baselines0 import logger
 from baselines0.common.schedules import LinearSchedule
+from baselines0.common.input import observation_input
+
+from baselines0 import deepq
+from baselines0.deepq.build_graph import build_act_greedy
 from baselines0.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
-from baselines0.common.tf_util import load_state, save_state
 from baselines0.deepq.utils import ObservationInput
-from brl_util import posterior_adfq, posterior_adfq_v2
 
 
 class ActWrapper(object):
@@ -34,8 +35,8 @@ class ActWrapper(object):
     def load(path):
         with open(path, "rb") as f:
             model_data, act_params = cloudpickle.load(f)
-        #act = build_graph.build_act(**act_params)
-        act = build_graph.build_act_greedy(reuse=None, **act_params)
+            
+        act = build_act_greedy(**act_params)
         sess = tf.Session()
         sess.__enter__()
         with tempfile.TemporaryDirectory() as td:
@@ -49,8 +50,7 @@ class ActWrapper(object):
         return ActWrapper(act, act_params)
 
     def __call__(self, *args, **kwargs):
-        actions = self._act(*args, **kwargs)
-        return actions
+        return self._act(*args, **kwargs)
 
     def save(self, path=None):
         """Save model to a pickle located at `path`"""
@@ -74,10 +74,12 @@ class ActWrapper(object):
 
 def load(path):
     """Load act function that was returned by learn function.
+
     Parameters
     ----------
     path: str
         path to the act function pickle
+
     Returns
     -------
     act: ActWrapper
@@ -98,27 +100,26 @@ def learn(env,
           batch_size=32,
           print_freq=100,
           checkpoint_freq=10000,
+          checkpoint_path=None,
           learning_starts=1000,
-          gamma=0.9,
+          gamma=1.0,
           target_network_update_freq=500,
           prioritized_replay=False,
           prioritized_replay_alpha=0.6,
           prioritized_replay_beta0=0.4,
           prioritized_replay_beta_iters=None,
           prioritized_replay_eps=1e-6,
+          param_noise=False,
           callback=None,
-          varTH=1e-05,
-          noise = 0.0,
           epoch_steps=20000,
-          alg='adfq',
           gpu_memory=1.0,
-          act_policy='egreedy',
-          save_dir='.',
-          nb_test_steps = 10000,
-          scope = 'deepadfq',
+          double_q=False,
+          scope="deepq",
+          directory='.',
+          nb_test_steps=10000,
           ):
+    """Train a deepq model.
 
-    """Train a deepadfq model.
     Parameters
     -------
     env: gym.Env
@@ -175,13 +176,6 @@ def learn(env,
     callback: (locals, globals) -> None
         function called at every steps with state of the algorithm.
         If callback returns true training stops.
-    varTH : variance threshold
-    noise : noise for stochastic cases
-    alg : 'adfq' or 'adfq-v2'
-    gpu_memory : a fraction of a gpu memory when running multiple programs in the same gpu 
-    act_policy : action policy, 'egreedy' or 'bayesian'
-    save_dir : path for saving results
-    nb_test_steps : step bound in evaluation
 
     Returns
     -------
@@ -190,36 +184,32 @@ def learn(env,
         See header of baselines0/deepq/categorical.py for details on the act function.
     """
     # Create all the functions necessary to train the model
-
     config = tf.ConfigProto(allow_soft_placement=True)
     config.gpu_options.per_process_gpu_memory_fraction = gpu_memory
     config.gpu_options.polling_inactive_delay_msecs = 25
     sess = tf.Session(config=config)
-
     sess.__enter__()
-    num_actions=env.action_space.n
-    varTH = np.float32(varTH)
+
     # capture the shape outside the closure so that the env object is not serialized
     # by cloudpickle when serializing make_obs_ph
-    observation_space_shape = env.observation_space.shape
-    adfq_func = posterior_adfq if alg == 'adfq' else posterior_adfq_v2
+    observation_space = env.observation_space
     def make_obs_ph(name):
-        return ObservationInput(env.observation_space, name=name)#return BatchInput(observation_space_shape, name=name)
+        return ObservationInput(observation_space, name=name)
 
-    act, act_greedy, q_target_vals, train, update_target = build_graph.build_train(sess,
+    act, act_greedy, train, update_target, debug = deepq.build_train(
         make_obs_ph=make_obs_ph,
         q_func=q_func,
         num_actions=env.action_space.n,
         optimizer=tf.train.AdamOptimizer(learning_rate=lr),
         gamma=gamma,
         grad_norm_clipping=10,
-        varTH=varTH,
-        act_policy=act_policy,
-        scope=scope,
+        param_noise=param_noise,
+        double_q = bool(double_q),
+        scope=scope
     )
 
     act_params = {
-        #'make_obs_ph': make_obs_ph,
+        'make_obs_ph': make_obs_ph,
         'q_func': q_func,
         'num_actions': env.action_space.n,
     }
@@ -251,15 +241,20 @@ def learn(env,
     obs = env.reset()
     reset = True
 
-    # recording
-    records = {'q_mean':[], 'q_sd':[], 'loss':[], 'online_reward':[], 'test_reward':[]}
+    #recording
+    records = { 'loss':[], 'online_reward':[], 'test_reward':[]}
 
     with tempfile.TemporaryDirectory() as td:
-        model_saved = False
+        td = checkpoint_path or td
+
         model_file = os.path.join(td, "model")
-    
-        ep_losses, ep_means, ep_sds, losses, means, sds = [], [], [], [], [], []
-        ep_mean_err, ep_sd_err, mean_errs, sd_errs = [], [], [], []
+        model_saved = False
+        if tf.train.latest_checkpoint(td) is not None:
+            load_state(model_file)
+            logger.log('Loaded model from {}'.format(model_file))
+            model_saved = True
+        
+        ep_losses, ep_means, losses = [], [], []
         print("===== LEARNING STARTS =====")
         for t in range(max_timesteps):
             if callback is not None:
@@ -267,13 +262,23 @@ def learn(env,
                     break
             # Take action and update exploration to the newest value
             kwargs = {}
-            update_eps = exploration.value(t)
-            
+            if not param_noise:
+                update_eps = exploration.value(t)
+                update_param_noise_threshold = 0.
+            else:
+                update_eps = 0.
+                # Compute the threshold such that the KL divergence between perturbed and non-perturbed
+                # policy is comparable to eps-greedy exploration with eps = exploration.value(t).
+                # See Appendix C.1 in Parameter Space Noise for Exploration, Plappert et al., 2017
+                # for detailed explanation.
+                update_param_noise_threshold = -np.log(1. - exploration.value(t) + exploration.value(t) / float(env.action_space.n))
+                kwargs['reset'] = reset
+                kwargs['update_param_noise_threshold'] = update_param_noise_threshold
+                kwargs['update_param_noise_scale'] = True
             action = act(np.array(obs)[None], update_eps=update_eps, **kwargs)[0]
             env_action = action
             reset = False
             new_obs, rew, done, _ = env.step(env_action)
-
             # Store transition in the replay buffer.
             timelimit_env = env
             while( not hasattr(timelimit_env, '_elapsed_steps')):
@@ -284,7 +289,7 @@ def learn(env,
                 replay_buffer.add(obs, action, rew, new_obs, float(done))
             else:
                 replay_buffer.add(obs, action, rew, new_obs, float(not done))
-
+            
             obs = new_obs
 
             episode_rewards[-1] += rew
@@ -294,13 +299,7 @@ def learn(env,
                 reset = True
                 if losses:
                     ep_losses.append(np.mean(losses))
-                    ep_means.append(np.mean(means))
-                    ep_sds.append(np.mean(sds))
-                    losses, means, sds = [], [], []
-
-                    ep_mean_err.append(np.mean(mean_errs))
-                    ep_sd_err.append(np.mean(sd_errs))
-                    mean_errs , sd_errs = [], []
+                    losses = []
 
             if t > learning_starts and t % train_freq == 0:
                 # Minimize the error in Bellman's equation on a batch sampled from replay buffer.
@@ -310,84 +309,51 @@ def learn(env,
                 else:
                     obses_t, actions, rewards, obses_tp1, dones = replay_buffer.sample(batch_size)
                     weights, batch_idxes = np.ones_like(rewards), None
-
-
-                stats_t = q_target_vals(obses_t)[0]
-                stats_tp1 = q_target_vals(obses_tp1)[0]
-
-                ind = np.arange(batch_size)
-                mean_t = stats_t[ind,actions.astype(int)]
-                sd_t = np.exp(-stats_t[ind, actions.astype(int)+num_actions])
-                mean_tp1 = stats_tp1[:,:num_actions]
-                sd_tp1 = np.exp(-stats_tp1[:,num_actions:])
-
-                var_t = np.maximum(varTH, np.square(sd_t))
-                var_tp1 = np.maximum(varTH, np.square(sd_tp1))
-
-                target_mean, target_var, _ = adfq_func(mean_tp1, var_tp1, mean_t, var_t, rewards, gamma,
-                        terminal=dones, asymptotic=False, batch=True, noise=noise, varTH = varTH)
-                target_sd = np.sqrt(target_var)
-
-                target_mean = np.reshape(target_mean, (-1))
-                target_sd = np.reshape(target_sd, (-1))
-                loss, m_err, s_err = train(obses_t, actions, target_mean, target_sd, weights)
-                losses.append(loss)
-                means.append(np.mean(mean_tp1))
-                sds.append(np.mean(sd_tp1))
-                mean_errs.append(m_err)
-                sd_errs.append(s_err)
-
+                td_errors = train(obses_t, actions, rewards, obses_tp1, dones, weights)
+                losses.append(td_errors)
                 if prioritized_replay:
-                    new_priorities = np.abs(loss) + prioritized_replay_eps
+                    new_priorities = np.abs(td_errors) + prioritized_replay_eps
                     replay_buffer.update_priorities(batch_idxes, new_priorities)
 
             if t > learning_starts and t % target_network_update_freq == 0:
                 # Update target network periodically.
                 update_target()
 
+            mean_100ep_reward = round(np.mean(episode_rewards[-101:-1]), 1)
+            num_episodes = len(episode_rewards)
+            
             if (t+1) % epoch_steps == 0 and (t+1) > learning_starts:
                 test_reward = test(env, act_greedy, nb_test_steps=nb_test_steps)
                 records['test_reward'].append(test_reward)
-                records['q_mean'].append(np.mean(ep_means))
-                records['q_sd'].append(np.mean(ep_sds))
                 records['loss'].append(np.mean(ep_losses))
                 records['online_reward'].append(round(np.mean(episode_rewards[-101:-1]), 1))
-                pickle.dump(records, open(os.path.join(save_dir,"records.pkl"),"wb"))
+                pickle.dump(records, open(os.path.join(directory,"records.pkl"),"wb"))
                 print("==== EPOCH %d ==="%((t+1)/epoch_steps))
                 print(tabulate([[k,v[-1]] for (k,v) in records.items()]))
-                
-            mean_100ep_reward = round(np.mean(episode_rewards[-101:-1]), 1)
-            num_episodes = len(episode_rewards)
+            
             if done and print_freq is not None and len(episode_rewards) % print_freq == 0:
                 logger.record_tabular("steps", t)
                 logger.record_tabular("episodes", num_episodes)
                 logger.record_tabular("mean 100 episode reward", mean_100ep_reward)
                 logger.record_tabular("% time spent exploring", int(100 * exploration.value(t)))
-                logger.record_tabular("averaged loss", np.mean(ep_losses[-print_freq:]))
-                logger.record_tabular("averaged output mean", np.mean(ep_means[-print_freq:]))
-                logger.record_tabular("averaged output sd", np.mean(ep_sds[-print_freq:]))
-                logger.record_tabular("averaged error mean", np.mean(ep_mean_err[-print_freq:]))
-                logger.record_tabular("averaged error sds", np.mean(ep_sd_err[-print_freq:]))
                 logger.dump_tabular()
 
             if (checkpoint_freq is not None and (t+1) > learning_starts and
                     num_episodes > 100 and (t+1) % checkpoint_freq == 0):
                 print("Saving model to model_%d.pkl"%(t+1))
-                act.save(os.path.join(save_dir,"model_"+str(t+1)+".pkl"))
+                act.save(os.path.join(directory,"model_"+str(t+1)+".pkl"))
                 if saved_mean_reward is None or mean_100ep_reward > saved_mean_reward:
                     if print_freq is not None:
                         logger.log("Saving model due to mean reward increase: {} -> {}".format(
                                    saved_mean_reward, mean_100ep_reward))
-
                     save_state(model_file)
                     model_saved = True
                     saved_mean_reward = mean_100ep_reward
-
-        # if model_saved:
-        #     if print_freq is not None:
-        #         logger.log("Restored model with mean reward: {}".format(saved_mean_reward))
-        #     load_state(model_file)
-
+                    
+        if model_saved:
+            if print_freq is not None:
+                logger.log("Restored model with mean reward: {}".format(saved_mean_reward))
+            load_state(model_file)
     return act, records
 
 def test(env0, act_greedy, nb_itrs=5, nb_test_steps=10000):
@@ -401,7 +367,7 @@ def test(env0, act_greedy, nb_itrs=5, nb_test_steps=10000):
         if hasattr(env, 'ale'):
             from baselines0.common.atari_wrappers import make_atari
             env_new = make_atari(env.spec.id)
-            env_new = models.wrap_atari_dqn(env_new)
+            env_new = deepq.wrap_atari_dqn(env_new)
         else:
             env_new = gym.make(env.spec.id)
         obs = env_new.reset()
@@ -431,20 +397,4 @@ def test(env0, act_greedy, nb_itrs=5, nb_test_steps=10000):
 
     return np.array(total_rewards, dtype=np.float32)
 
-def iqr(x):
-    """Interquantiles
-    x has to be a 2D np array. The interquantiles are computed along with the axis 1
-    """
-    i25 = int(0.25*x.shape[0])
-    i75 = int(0.75*x.shape[0])
-    x=x.T
-    ids25=[]
-    ids75=[]
-    m = []
-    for y in x:
-        tmp = np.sort(y)
-        ids25.append(tmp[i25])
-        ids75.append(tmp[i75])
-        m.append(np.mean(tmp,dtype=np.float32))
-    return m, ids25, ids75
-    
+

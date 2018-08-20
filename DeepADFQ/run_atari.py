@@ -1,12 +1,11 @@
 """
-This code was modified from a OpenAI baseline code - baselines/baselines/deepq/experiments/run_atari.py 
+This code was modified from a OpenAI baseline code - baselines0/baselines0/deepq/experiments/run_atari.py 
 for running ADFQ in Atari enviornment
 """
-
-from baselines.common import set_global_seeds
-from baselines.common.atari_wrappers import make_atari
-from baselines import logger
-from baselines import bench
+from baselines0.common import set_global_seeds
+from baselines0.common.atari_wrappers import make_atari
+from baselines0 import logger
+from baselines0 import bench
 
 import argparse
 import models
@@ -51,7 +50,6 @@ parser.add_argument('--scope',type=str, default='deepadfq')
 args = parser.parse_args()
 
 def train():
-    
     logger.configure()
     set_global_seeds(args.seed)
 
