@@ -201,11 +201,11 @@ def learn(env,
     varTH = np.float32(varTH)
     # capture the shape outside the closure so that the env object is not serialized
     # by cloudpickle when serializing make_obs_ph
-    observation_space_shape = env.observation_space.shape
     adfq_func = posterior_adfq if alg == 'adfq' else posterior_adfq_v2
+    observation_space = env.observation_space
     def make_obs_ph(name):
-        return ObservationInput(env.observation_space, name=name)#return BatchInput(observation_space_shape, name=name)
-
+        return ObservationInput(observation_space, name=name)
+        
     act, act_greedy, q_target_vals, train, update_target = build_graph.build_train(sess,
         make_obs_ph=make_obs_ph,
         q_func=q_func,
