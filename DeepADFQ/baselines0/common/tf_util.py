@@ -267,7 +267,7 @@ def flattenallbut0(x):
 # ================================================================
 
 def display_var_info(vars):
-    from baselines import logger
+    from baselines0 import logger
     count_params = 0
     for v in vars:
         name = v.name

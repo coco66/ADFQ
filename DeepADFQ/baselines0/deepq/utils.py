@@ -1,4 +1,4 @@
-from baselines.common.input import observation_input
+from baselines0.common.input import observation_input
 
 import tensorflow as tf
 

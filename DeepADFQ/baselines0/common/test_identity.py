@@ -4,21 +4,21 @@ import random
 import numpy as np
 from gym.spaces import np_random
 
-from baselines.a2c import a2c
-from baselines.ppo2 import ppo2
-from baselines.common.identity_env import IdentityEnv
-from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
-from baselines.ppo2.policies import MlpPolicy
+#from baselines0.a2c import a2c
+#from baselines0.ppo2 import ppo2
+from baselines0.common.identity_env import IdentityEnv
+from baselines0.common.vec_env.dummy_vec_env import DummyVecEnv
+#from baselines0.ppo2.policies import MlpPolicy
 
 
-learn_func_list = [
-    lambda e: a2c.learn(policy=MlpPolicy, env=e, seed=0, total_timesteps=50000),
-    lambda e: ppo2.learn(policy=MlpPolicy, env=e, total_timesteps=50000, lr=1e-3, nsteps=128, ent_coef=0.01)
-]
+#learn_func_list = [
+#    lambda e: a2c.learn(policy=MlpPolicy, env=e, seed=0, total_timesteps=50000),
+#    lambda e: ppo2.learn(policy=MlpPolicy, env=e, total_timesteps=50000, lr=1e-3, nsteps=128, ent_coef=0.01)
+#]
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("learn_func", learn_func_list)
+#@pytest.mark.parametrize("learn_func", learn_func_list)
 def test_identity(learn_func):
     '''
     Test if the algorithm (with a given policy) 

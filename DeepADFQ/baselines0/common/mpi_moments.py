@@ -1,6 +1,6 @@
 from mpi4py import MPI
 import numpy as np
-from baselines.common import zipsame
+from baselines0.common import zipsame
 
 
 def mpi_mean(x, axis=0, comm=None, keepdims=False):
@@ -35,7 +35,7 @@ def test_runningmeanstd():
     import subprocess
     subprocess.check_call(['mpirun', '-np', '3', 
         'python','-c', 
-        'from baselines.common.mpi_moments import _helper_runningmeanstd; _helper_runningmeanstd()'])
+        'from baselines0.common.mpi_moments import _helper_runningmeanstd; _helper_runningmeanstd()'])
 
 def _helper_runningmeanstd():
     comm = MPI.COMM_WORLD
