@@ -31,11 +31,15 @@ class ActWrapper(object):
         self._act_params = act_params
 
     @staticmethod
-    def load(path):
+    def load(path, observation_space):
         with open(path, "rb") as f:
             model_data, act_params = cloudpickle.load(f)
         #act = build_graph.build_act(**act_params)
-        act = build_graph.build_act_greedy(reuse=None, **act_params)
+        if not("make_obs_ph" in act_params.keys()):
+            def make_obs_ph(name):
+                return ObservationInput(observation_space, name=name)
+            act_params['make_obs_ph'] = make_obs_ph
+        act = build_graph.build_act_greedy(**act_params)
         sess = tf.Session()
         sess.__enter__()
         with tempfile.TemporaryDirectory() as td:
@@ -72,7 +76,7 @@ class ActWrapper(object):
             cloudpickle.dump((model_data, self._act_params), f)
 
 
-def load(path):
+def load(path, observation_space):
     """Load act function that was returned by learn function.
     Parameters
     ----------
@@ -84,7 +88,7 @@ def load(path):
         function that takes a batch of observations
         and returns actions.
     """
-    return ActWrapper.load(path)
+    return ActWrapper.load(path, observation_space)
 
 
 def learn(env,
@@ -219,7 +223,7 @@ def learn(env,
     )
 
     act_params = {
-        #'make_obs_ph': make_obs_ph,
+        'make_obs_ph': make_obs_ph,
         'q_func': q_func,
         'num_actions': env.action_space.n,
     }

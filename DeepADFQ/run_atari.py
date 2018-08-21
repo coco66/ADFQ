@@ -112,7 +112,9 @@ def train():
 def test():
     env = make_atari(args.env)
     env = models.wrap_atari_dqn(env)
-    act = simple.load(os.path.join(args.log_dir, args.log_fname))
+    #act = simple.load(os.path.join(args.log_dir, args.log_fname))
+    observation_space = env.observation_space
+    act = simple.load(os.path.join(args.log_dir, args.log_fname), observation_space)
     if args.record:
         env = Monitor(env, directory=args.log_dir)
 

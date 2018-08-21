@@ -101,7 +101,8 @@ def train():
 def test():
     env = make_atari(args.env)
     env = deepq.wrap_atari_dqn(env)
-    act = deepq.load(os.path.join(args.log_dir, args.log_fname))
+    observation_space = env.observation_space
+    act = deepq.load(os.path.join(args.log_dir, args.log_fname), observation_space)
     if args.record:
         env = Monitor(env, directory=args.log_dir)
 

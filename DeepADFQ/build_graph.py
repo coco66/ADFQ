@@ -176,7 +176,7 @@ def build_act_greedy(make_obs_ph, q_func, num_actions, scope="deepadfq", reuse=T
         observations_ph = make_obs_ph("observation")
         stochastic_ph = tf.placeholder(tf.bool, (), name="stochastic")
 
-        q_values = q_func(observations_ph.get(), num_actions*2, scope="q_func")
+        q_values = q_func(observations_ph.get(), num_actions*2, reuse=tf.AUTO_REUSE, scope="q_func")
         deterministic_actions = tf.argmax(q_values[:, :num_actions], axis=1)
 
         batch_size = tf.shape(observations_ph.get())[0]
@@ -197,7 +197,7 @@ def build_act_bayesian(make_obs_ph, q_func, num_actions, scope="deepadfq", reuse
     """
     with tf.variable_scope(scope, reuse=reuse):
         observations_ph = make_obs_ph("observation")
-        q_values = q_func(observations_ph.get(), num_actions*2, scope="q_func") # mean and -log(sd)
+        q_values = q_func(observations_ph.get(), num_actions*2, reuse=tf.AUTO_REUSE, scope="q_func") # mean and -log(sd)
         q_means = q_values[:,:num_actions]
         q_sds = tf.exp(-q_values[:,num_actions:])
         samples = tf.random_normal((),mean=q_means,stddev=q_sds)
