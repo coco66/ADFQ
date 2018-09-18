@@ -1,5 +1,3 @@
-The code will be updated soon!!
-
 Author: \\
 Heejin Chloe Jeong* (heejinj@seas.upenn.edu)\\
 Clark Zhang (clarkz@seas.upenn.edu)\\
