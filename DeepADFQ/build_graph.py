@@ -150,7 +150,7 @@ def build_act(make_obs_ph, q_func, num_actions, scope="deepadfq", reuse=None):
 
         # batch_size by action* 2 matrix. The first action_dim number of columns is the mean. 
         # The last action_dim number of columns is the variance
-        q_values = q_func(observations_ph.get(), num_actions*2, scope="q_func")
+        q_values = q_func(observations_ph.get(), num_actions*2, keep_prob=1.0, scope="q_func")
         deterministic_actions = tf.argmax(q_values[:, :num_actions], axis=1)
 
         batch_size = tf.shape(observations_ph.get())[0]
@@ -176,7 +176,7 @@ def build_act_greedy(make_obs_ph, q_func, num_actions, scope="deepadfq", reuse=T
         observations_ph = make_obs_ph("observation")
         stochastic_ph = tf.placeholder(tf.bool, (), name="stochastic")
 
-        q_values = q_func(observations_ph.get(), num_actions*2, reuse=tf.AUTO_REUSE, scope="q_func")
+        q_values = q_func(observations_ph.get(), num_actions*2, keep_prob = 1.0, scope="q_func")
         deterministic_actions = tf.argmax(q_values[:, :num_actions], axis=1)
 
         batch_size = tf.shape(observations_ph.get())[0]
@@ -197,7 +197,7 @@ def build_act_bayesian(make_obs_ph, q_func, num_actions, scope="deepadfq", reuse
     """
     with tf.variable_scope(scope, reuse=reuse):
         observations_ph = make_obs_ph("observation")
-        q_values = q_func(observations_ph.get(), num_actions*2, reuse=tf.AUTO_REUSE, scope="q_func") # mean and -log(sd)
+        q_values = q_func(observations_ph.get(), num_actions*2, scope="q_func") # mean and -log(sd)
         q_means = q_values[:,:num_actions]
         q_sds = tf.exp(-q_values[:,num_actions:])
         samples = tf.random_normal((),mean=q_means,stddev=q_sds)
@@ -210,8 +210,9 @@ def build_act_bayesian(make_obs_ph, q_func, num_actions, scope="deepadfq", reuse
             return _act(ob)
         return act
 
-def build_train(sess, make_obs_ph, q_func, num_actions, optimizer, grad_norm_clipping=None, gamma=0.9,
-    scope="deepadfq", reuse=None, varTH=1e-05, test_eps=0.05, act_policy='egreedy'):
+def build_train(sess, make_obs_ph, q_func, num_actions, optimizer_f, grad_norm_clipping=None, gamma=0.9,
+    scope="deepadfq", reuse=None, varTH=1e-05, test_eps=0.05, act_policy='egreedy', 
+    learning_rate = 0.001, learning_rate_decay_factor=0.99, learning_rate_growth_factor=1.001):
     """Creates the train function:
     Parameters
     ----------
@@ -285,17 +286,23 @@ def build_train(sess, make_obs_ph, q_func, num_actions, optimizer, grad_norm_cli
         obs_tp1_input = make_obs_ph("obs_tp1")
         done_mask_ph = tf.placeholder(tf.float32, [None], name="done")
         importance_weights_ph = tf.placeholder(tf.float32, [None], name="weight")
+        keep_prob = tf.placeholder(tf.float32,  name = "keep_prob")
 
+        # Learning rate adjustment
+        lr = tf.Variable(float(learning_rate), trainable=False, dtype = tf.float32)
+        learning_rate_decay_op = lr.assign(tf.clip_by_value(lr*learning_rate_decay_factor, 1e-5, 1e-3))
+        learning_rate_growth_op = lr.assign(tf.clip_by_value(lr*learning_rate_growth_factor, 1e-5, 1e-3))
+        optimizer = optimizer_f(learning_rate = lr)
 
         target_means = tf.placeholder(tf.float32, [None], name="target_means")
         target_sd = tf.placeholder(tf.float32, [None], name="target_sd")
 
         # q network evaluation
-        q_t = q_func(obs_t_input.get(), num_actions*2, scope="q_func", reuse=True)  # reuse parameters from act
+        q_t = q_func(obs_t_input.get(), num_actions*2, keep_prob=keep_prob, scope="q_func", reuse=True)  # reuse parameters from act
         q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=tf.get_variable_scope().name + "/q_func")
 
         # target q network evalution
-        q_tp1 = q_func(obs_tp1_input.get(), num_actions*2, scope="target_q_func")
+        q_tp1 = q_func(obs_tp1_input.get(), num_actions*2, keep_prob=keep_prob, scope="target_q_func")
         
         target_q_func_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope=tf.get_variable_scope().name + "/target_q_func")
 
@@ -307,7 +314,7 @@ def build_train(sess, make_obs_ph, q_func, num_actions, optimizer, grad_norm_cli
 
         sd_selected = tf.exp(-rho_selected)
 
-        mean_error = target_means - mean_selected
+        mean_error = target_means-mean_selected
         sd_error = target_sd - sd_selected 
         huber_loss = U.huber_loss(mean_error) + U.huber_loss(sd_error)
         weighted_loss = tf.reduce_mean(huber_loss * importance_weights_ph)
@@ -340,15 +347,16 @@ def build_train(sess, make_obs_ph, q_func, num_actions, optimizer, grad_norm_cli
                 act_t_ph,
                 target_means,
                 target_sd,
-                importance_weights_ph
+                importance_weights_ph,
+                keep_prob,
             ],
-            outputs=[huber_loss, tf.reduce_mean(tf.abs(mean_error)), tf.reduce_mean(tf.abs(sd_error))],
+            outputs=[huber_loss, tf.reduce_mean(tf.abs(mean_error)), tf.reduce_mean(tf.abs(sd_error)), lr],
             updates=[optimize_expr]
         )
         update_target = U.function([], [], updates=[update_target_expr])
 
         q_target_vals = U.function(
-            inputs=[obs_tp1_input],
+            inputs=[obs_tp1_input, keep_prob],
             outputs = [q_tp1])
 
-        return act_f, act_greedy, q_target_vals, train, update_target
+        return act_f, act_greedy, q_target_vals, train, update_target, learning_rate_decay_op, learning_rate_growth_op

@@ -2,7 +2,7 @@ import numpy as np
 import random
 
 from baselines0.common.segment_tree import SumSegmentTree, MinSegmentTree
-
+#from segment_tree import SumSegmentTree, MinSegmentTree
 
 class ReplayBuffer(object):
     def __init__(self, size):

@@ -1,4 +1,4 @@
-"""This code was modified from a OpenAI baseline code - baselines/baselines/deepq/models.py
+"""This code was modified from a OpenAI baseline code - baselines0/baselines0/deepq/models.py
 """
 import tensorflow as tf
 import tensorflow.contrib.layers as layers
@@ -8,7 +8,7 @@ def wrap_atari_dqn(env):
     from baselines0.common.atari_wrappers import wrap_deepmind
     return wrap_deepmind(env, frame_stack=True, scale=True)
 
-def _mlp(hiddens, inpt, num_actions, scope, reuse=False, layer_norm=False, init_mean = 1.0, init_sd = 20.0):
+def _mlp(hiddens, inpt, num_actions, scope, reuse=False, layer_norm=False, init_mean = 1.0, init_sd = 20.0, keep_prob = 1.0):
     with tf.variable_scope(scope, reuse=reuse):
         out = inpt
         for hidden in hiddens:
@@ -17,6 +17,7 @@ def _mlp(hiddens, inpt, num_actions, scope, reuse=False, layer_norm=False, init_
                 out = layers.layer_norm(out, center=True, scale=True)
             out = tf.nn.relu(out)
 
+        out = tf.nn.dropout(out, keep_prob)
         bias_init = [init_mean for _ in range(int(num_actions/2))]
         bias_init.extend([-np.log(init_sd) for _ in range(int(num_actions/2))])
         q_out = layers.fully_connected(out, 
@@ -44,7 +45,7 @@ def mlp(hiddens=[], layer_norm=False, init_mean = 1.0, init_sd = 20.0):
     return lambda *args, **kwargs: _mlp(hiddens, layer_norm=layer_norm, init_mean=init_mean, init_sd = init_sd, *args, **kwargs)
 
 
-def _cnn_to_mlp(convs, hiddens, dueling, inpt, num_actions, scope, reuse=False, layer_norm=False, init_mean = 1.0, init_sd = 20.0):
+def _cnn_to_mlp(convs, hiddens, dueling, inpt, num_actions, scope, keep_prob = 1.0, reuse=False, layer_norm=False, init_mean = 1.0, init_sd = 20.0):
     with tf.variable_scope(scope, reuse=reuse):
         out = inpt
         with tf.variable_scope("convnet"):

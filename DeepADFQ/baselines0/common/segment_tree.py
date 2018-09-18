@@ -4,18 +4,14 @@ import operator
 class SegmentTree(object):
     def __init__(self, capacity, operation, neutral_element):
         """Build a Segment Tree data structure.
-
         https://en.wikipedia.org/wiki/Segment_tree
-
         Can be used as regular array, but with two
         important differences:
-
             a) setting item's value is slightly slower.
                It is O(lg capacity) instead of O(1).
             b) user has access to an efficient ( O(log segment size) )
                `reduce` operation which reduces `operation` over
                a contiguous subsequence of items in the array.
-
         Paramters
         ---------
         capacity: int
@@ -51,16 +47,13 @@ class SegmentTree(object):
     def reduce(self, start=0, end=None):
         """Returns result of applying `self.operation`
         to a contiguous subsequence of the array.
-
             self.operation(arr[start], operation(arr[start+1], operation(... arr[end])))
-
         Parameters
         ----------
         start: int
             beginning of the subsequence
         end: int
             end of the subsequences
-
         Returns
         -------
         reduced: obj
@@ -105,16 +98,13 @@ class SumSegmentTree(SegmentTree):
     def find_prefixsum_idx(self, prefixsum):
         """Find the highest index `i` in the array such that
             sum(arr[0] + arr[1] + ... + arr[i - i]) <= prefixsum
-
         if array values are probabilities, this function
         allows to sample indexes according to the discrete
         probability efficiently.
-
         Parameters
         ----------
         perfixsum: float
             upperbound on the sum of array prefix
-
         Returns
         -------
         idx: int

@@ -1,9 +1,0 @@
-echo Copying to openAI baselines...
-sudo git clone https://github.com/openai/baselines.git ../
-scp DeepADFQ/deepq_add/__init__.py ../baselines/baselines/deepq/
-scp DeepADFQ/deepq_add/simple.py ../baselines/baselines/deepq/
-scp DeepADFQ/deepq_add/build_graph.py ../baselines/baselines/deepq/
-scp DeepADFQ/deepq_add/run_mlp.py ../baselines/baselines/deepq/experiments/
-scp DeepADFQ/deepq_add/run_atari.py ../baselines/baselines/deepq/experiments/
-python3 ../baselines/baselines/deepq/__init__.py
-

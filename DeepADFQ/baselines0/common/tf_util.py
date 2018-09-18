@@ -10,7 +10,6 @@ def switch(condition, then_expression, else_expression):
     """Switches between two operations depending on a scalar value (int or bool).
     Note that both `then_expression` and `else_expression`
     should be symbolic tensors of the *same shape*.
-
     # Arguments
         condition: scalar tensor.
         then_expression: TensorFlow operation.
@@ -55,6 +54,7 @@ def make_session(num_cpu=None, make_default=False, graph=None):
     tf_config = tf.ConfigProto(
         inter_op_parallelism_threads=num_cpu,
         intra_op_parallelism_threads=num_cpu)
+    tf_config.gpu_options.allocator_type = 'BFC'
     if make_default:
         return tf.InteractiveSession(config=tf_config, graph=graph)
     else:
@@ -75,9 +75,17 @@ ALREADY_INITIALIZED = set()
 
 def initialize():
     """Initialize all the uninitialized variables in the global scope."""
-    new_variables = set(tf.global_variables()) - ALREADY_INITIALIZED
-    tf.get_default_session().run(tf.variables_initializer(new_variables))
-    ALREADY_INITIALIZED.update(new_variables)
+
+
+    # new_variables = set(tf.global_variables()) - ALREADY_INITIALIZED
+    # tf.get_default_session().run(tf.variables_initializer(new_variables))
+    # ALREADY_INITIALIZED.update(new_variables)
+
+
+    # tf.get_default_session().run(tf.variables_initializer(tf.global_variables))
+    tf.get_default_session().run(tf.global_variables_initializer())
+
+
 
 # ================================================================
 # Model components
@@ -128,24 +136,19 @@ def function(inputs, outputs, updates=None, givens=None):
     computed based on those placeholders and produces f(inputs) -> outputs. Function f takes
     values to be fed to the input's placeholders and produces the values of the expressions
     in outputs.
-
     Input values can be passed in the same order as inputs or can be provided as kwargs based
     on placeholder name (passed to constructor or accessible via placeholder.op.name).
-
     Example:
         x = tf.placeholder(tf.int32, (), name="x")
         y = tf.placeholder(tf.int32, (), name="y")
         z = 3 * x + 2 * y
         lin = function([x, y], z, givens={y: 0})
-
         with single_threaded_session():
             initialize()
-
             assert lin(2) == 6
             assert lin(x=3) == 9
             assert lin(2, 2) == 10
             assert lin(x=2, y=3) == 12
-
     Parameters
     ----------
     inputs: [tf.placeholder, tf.constant, or object with make_feed_dict method]
@@ -278,27 +281,3 @@ def display_var_info(vars):
         logger.info("   %s%s %i params %s" % (name, " "*(55-len(name)), v_params, str(v.shape)))
 
     logger.info("Total model parameters: %0.2f million" % (count_params*1e-6))
-
-
-def get_available_gpus():
-    # recipe from here:
-    # https://stackoverflow.com/questions/38559755/how-to-get-current-available-gpus-in-tensorflow?utm_medium=organic&utm_source=google_rich_qa&utm_campaign=google_rich_qa
- 
-    from tensorflow.python.client import device_lib
-    local_device_protos = device_lib.list_local_devices()
-    return [x.name for x in local_device_protos if x.device_type == 'GPU']
-
-# ================================================================
-# Saving variables
-# ================================================================
-
-def load_state(fname):
-    saver = tf.train.Saver()
-    saver.restore(tf.get_default_session(), fname)
-
-def save_state(fname):
-    os.makedirs(os.path.dirname(fname), exist_ok=True)
-    saver = tf.train.Saver()
-    saver.save(tf.get_default_session(), fname)
-
-

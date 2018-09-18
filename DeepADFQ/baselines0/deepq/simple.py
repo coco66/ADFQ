@@ -3,7 +3,7 @@ This code was slightly modified from the baselines0/baselines0/deepq/simple.py i
 a different evaluation method. In order to run, simply replace the original code with this code
 in the original directory.
 """
-import os
+import os, pdb
 import tempfile
 from tabulate import tabulate
 import pickle
@@ -15,7 +15,6 @@ import numpy as np
 
 import gym
 import baselines0.common.tf_util as U
-from baselines0.common.tf_util import load_state, save_state
 from baselines0 import logger
 from baselines0.common.schedules import LinearSchedule
 from baselines0.common.input import observation_input
@@ -23,7 +22,7 @@ from baselines0.common.input import observation_input
 from baselines0 import deepq
 from baselines0.deepq.build_graph import build_act_greedy
 from baselines0.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
-from baselines0.deepq.utils import ObservationInput
+from baselines0.deepq.utils import BatchInput, load_state, save_state
 
 
 class ActWrapper(object):
@@ -32,15 +31,16 @@ class ActWrapper(object):
         self._act_params = act_params
 
     @staticmethod
-    def load(path, observation_space):
+    def load(path, act_params_new=None):
         with open(path, "rb") as f:
             model_data, act_params = cloudpickle.load(f)
-        if not("make_obs_ph" in act_params.keys()):
-            def make_obs_ph(name):
-                return ObservationInput(observation_space, name=name)
-            act_params['make_obs_ph'] = make_obs_ph
 
-        act = build_act_greedy(**act_params)
+        if act_params_new:
+            act_params['make_obs_ph'] = act_params_new['make_obs_ph']
+            act_params['q_func'] = act_params_new['q_func']
+            act_params['scope'] = act_params_new['scope']
+
+        act = build_act_greedy(reuse=None, **act_params)
         sess = tf.Session()
         sess.__enter__()
         with tempfile.TemporaryDirectory() as td:
@@ -76,7 +76,7 @@ class ActWrapper(object):
             cloudpickle.dump((model_data, self._act_params), f)
 
 
-def load(path, observation_space):
+def load(path, act_params=None):
     """Load act function that was returned by learn function.
 
     Parameters
@@ -90,7 +90,7 @@ def load(path, observation_space):
         function that takes a batch of observations
         and returns actions.
     """
-    return ActWrapper.load(path, observation_space)
+    return ActWrapper.load(path, act_params)
 
 
 def learn(env,
@@ -121,6 +121,7 @@ def learn(env,
           scope="deepq",
           directory='.',
           nb_test_steps=10000,
+          test_eps=0.05,
           ):
     """Train a deepq model.
 
@@ -196,9 +197,9 @@ def learn(env,
 
     # capture the shape outside the closure so that the env object is not serialized
     # by cloudpickle when serializing make_obs_ph
-    observation_space = env.observation_space
+    observation_space_shape = env.observation_space.shape
     def make_obs_ph(name):
-        return ObservationInput(observation_space, name=name)
+        return BatchInput(observation_space_shape, name=name)
 
     act, act_greedy, train, update_target, debug = deepq.build_train(
         make_obs_ph=make_obs_ph,
@@ -209,7 +210,8 @@ def learn(env,
         grad_norm_clipping=10,
         param_noise=param_noise,
         double_q = bool(double_q),
-        scope=scope
+        scope=scope,
+        test_eps=test_eps,
     )
 
     act_params = {
@@ -354,10 +356,11 @@ def learn(env,
                     model_saved = True
                     saved_mean_reward = mean_100ep_reward
                     
-        if model_saved:
-            if print_freq is not None:
-                logger.log("Restored model with mean reward: {}".format(saved_mean_reward))
-            load_state(model_file)
+        #if model_saved:
+        #    if print_freq is not None:
+        #        logger.log("Restored model with mean reward: {}".format(saved_mean_reward))
+        #    load_state(model_file)
+
     return act, records
 
 def test(env0, act_greedy, nb_itrs=5, nb_test_steps=10000):
@@ -390,15 +393,34 @@ def test(env0, act_greedy, nb_itrs=5, nb_test_steps=10000):
             episode_reward = 0
             while(t < nb_test_steps):
                 action = act_greedy(np.array(obs)[None])[0]
-                obs, rew, done, _ = env_new.step(action)
+                obs, rew, done, info = env_new.step(action)
                 episode_reward += rew
                 if done:
-                    episodes.append(episode_reward)
-                    episode_reward = 0
                     obs = env_new.reset()
+                    if info['ale.lives'] == 0:
+                        episodes.append(episode_reward)
+                        episode_reward = 0
                 t += 1
+            if not(episodes):
+                episodes.append(episode_reward)
             total_rewards.append(np.mean(episodes))
 
     return np.array(total_rewards, dtype=np.float32)
 
-
+def iqr(x):
+    """Interquantiles
+    x has to be a 2D np array. The interquantiles are computed along with the axis 1
+    """
+    i25 = int(0.25*x.shape[0])
+    i75 = int(0.75*x.shape[0])
+    x=x.T
+    ids25=[]
+    ids75=[]
+    m = []
+    for y in x:
+        tmp = np.sort(y)
+        ids25.append(tmp[i25])
+        ids75.append(tmp[i75])
+        m.append(np.mean(tmp,dtype=np.float32))
+    return m, ids25, ids75
+    

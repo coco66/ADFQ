@@ -205,10 +205,11 @@ def build_act(make_obs_ph, q_func, num_actions, scope="deepq", reuse=None):
 
 def build_act_greedy(make_obs_ph, q_func, num_actions, scope="deepq", reuse=True, eps=0.0):
     with tf.variable_scope(scope, reuse=reuse):
+
         observations_ph = make_obs_ph("observation")
         stochastic_ph = tf.placeholder(tf.bool, (), name="stochastic")
 
-        q_values = q_func(observations_ph.get(), num_actions, reuse=tf.AUTO_REUSE, scope="q_func")
+        q_values = q_func(observations_ph.get(), num_actions, scope="q_func")
         deterministic_actions = tf.argmax(q_values[:, :num_actions], axis=1)
 
         batch_size = tf.shape(observations_ph.get())[0]

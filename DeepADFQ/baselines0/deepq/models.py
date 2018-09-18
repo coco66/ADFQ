@@ -2,7 +2,7 @@ import tensorflow as tf
 import tensorflow.contrib.layers as layers
 
 
-def _mlp(hiddens, inpt, num_actions, scope, reuse=False, layer_norm=False):
+def _mlp(hiddens, inpt, num_actions, scope, reuse=False, layer_norm=False, keep_prob=1.0):
     with tf.variable_scope(scope, reuse=reuse):
         out = inpt
         for hidden in hiddens:
@@ -10,6 +10,7 @@ def _mlp(hiddens, inpt, num_actions, scope, reuse=False, layer_norm=False):
             if layer_norm:
                 out = layers.layer_norm(out, center=True, scale=True)
             out = tf.nn.relu(out)
+        out = tf.nn.dropout(out, keep_prob)
         q_out = layers.fully_connected(out, num_outputs=num_actions, activation_fn=None)
         return q_out
 

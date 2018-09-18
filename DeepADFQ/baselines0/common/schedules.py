@@ -3,7 +3,6 @@ time throughout the execution of the algorithm, such as:
  - learning rate for the optimizer
  - exploration epsilon for the epsilon greedy exploration strategy
  - beta parameter for beta parameter in prioritized replay
-
 Each schedule has a function `value(t)` which returns the current value
 of the parameter given the timestep t of the optimization procedure.
 """
@@ -18,7 +17,6 @@ class Schedule(object):
 class ConstantSchedule(object):
     def __init__(self, value):
         """Value remains constant over time.
-
         Parameters
         ----------
         value: float
@@ -38,7 +36,6 @@ def linear_interpolation(l, r, alpha):
 class PiecewiseSchedule(object):
     def __init__(self, endpoints, interpolation=linear_interpolation, outside_value=None):
         """Piecewise schedule.
-
         endpoints: [(int, int)]
             list of pairs `(time, value)` meanining that schedule should output
             `value` when `t==time`. All the values for time must be sorted in
@@ -78,7 +75,6 @@ class LinearSchedule(object):
         """Linear interpolation between initial_p and final_p over
         schedule_timesteps. After this many timesteps pass final_p is
         returned.
-
         Parameters
         ----------
         schedule_timesteps: int

@@ -1,8 +1,7 @@
-"""
-This code was modified from a OpenAI baseline code - baselines0/baselines0/deepq/simple.py for ADFQ
+"""This code was modified from a OpenAI baseline code - baselines0/baselines0/deepq/simple.py for ADFQ
 """
 
-import os
+import os, pdb
 import tempfile
 from tabulate import tabulate
 import pickle
@@ -20,8 +19,7 @@ import baselines0.common.tf_util as U
 from baselines0 import logger
 from baselines0.common.schedules import LinearSchedule
 from baselines0.deepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
-from baselines0.common.tf_util import load_state, save_state
-from baselines0.deepq.utils import ObservationInput
+from baselines0.deepq.utils import BatchInput, load_state, save_state
 from brl_util import posterior_adfq, posterior_adfq_v2
 
 
@@ -31,15 +29,16 @@ class ActWrapper(object):
         self._act_params = act_params
 
     @staticmethod
-    def load(path, observation_space):
+    def load(path, act_params_new=None):
         with open(path, "rb") as f:
             model_data, act_params = cloudpickle.load(f)
         #act = build_graph.build_act(**act_params)
-        if not("make_obs_ph" in act_params.keys()):
-            def make_obs_ph(name):
-                return ObservationInput(observation_space, name=name)
-            act_params['make_obs_ph'] = make_obs_ph
-        act = build_graph.build_act_greedy(**act_params)
+        if act_params_new:
+            act_params['make_obs_ph'] = act_params_new['make_obs_ph']
+            act_params['q_func'] = act_params_new['q_func']
+            act_params['scope'] = act_params_new['scope']
+
+        act = build_graph.build_act_greedy(reuse=None, **act_params)
         sess = tf.Session()
         sess.__enter__()
         with tempfile.TemporaryDirectory() as td:
@@ -76,7 +75,7 @@ class ActWrapper(object):
             cloudpickle.dump((model_data, self._act_params), f)
 
 
-def load(path, observation_space):
+def load(path, act_params=None):
     """Load act function that was returned by learn function.
     Parameters
     ----------
@@ -88,12 +87,14 @@ def load(path, observation_space):
         function that takes a batch of observations
         and returns actions.
     """
-    return ActWrapper.load(path, observation_space)
+    return ActWrapper.load(path, act_params)
 
 
 def learn(env,
           q_func,
           lr=5e-4,
+          lr_decay_factor = 0.99,
+          lr_growth_factor = 1.001,
           max_timesteps=100000,
           buffer_size=50000,
           exploration_fraction=0.1,
@@ -120,6 +121,10 @@ def learn(env,
           save_dir='.',
           nb_test_steps = 10000,
           scope = 'deepadfq',
+          test_eps = 0.05,
+          keep_prob = 1.0,
+          reload_path = None,
+          init_t = 0,
           ):
 
     """Train a deepadfq model.
@@ -199,27 +204,32 @@ def learn(env,
     config.gpu_options.per_process_gpu_memory_fraction = gpu_memory
     config.gpu_options.polling_inactive_delay_msecs = 25
     sess = tf.Session(config=config)
-
     sess.__enter__()
+    
     num_actions=env.action_space.n
     varTH = np.float32(varTH)
     # capture the shape outside the closure so that the env object is not serialized
     # by cloudpickle when serializing make_obs_ph
+    # observation_space_shape = env.observation_space.shape
     adfq_func = posterior_adfq if alg == 'adfq' else posterior_adfq_v2
-    observation_space = env.observation_space
+    observation_space_shape = env.observation_space.shape
     def make_obs_ph(name):
-        return ObservationInput(observation_space, name=name)
-        
-    act, act_greedy, q_target_vals, train, update_target = build_graph.build_train(sess,
+        return BatchInput(observation_space_shape, name=name)
+
+    act, act_greedy, q_target_vals, train, update_target, lr_decay_op, lr_growth_op = build_graph.build_train(sess,
         make_obs_ph=make_obs_ph,
         q_func=q_func,
         num_actions=env.action_space.n,
-        optimizer=tf.train.AdamOptimizer(learning_rate=lr),
+        optimizer_f=tf.train.AdamOptimizer,
         gamma=gamma,
         grad_norm_clipping=10,
         varTH=varTH,
         act_policy=act_policy,
         scope=scope,
+        test_eps=test_eps,
+        learning_rate = lr,
+        learning_rate_decay_factor = lr_decay_factor,
+        learning_rate_growth_factor = lr_growth_factor,
     )
 
     act_params = {
@@ -229,7 +239,7 @@ def learn(env,
     }
 
     act = ActWrapper(act, act_params)
-
+    
     # Create the replay buffer
     if prioritized_replay:
         replay_buffer = PrioritizedReplayBuffer(buffer_size, alpha=prioritized_replay_alpha)
@@ -247,7 +257,21 @@ def learn(env,
                                  final_p=exploration_final_eps)
 
     # Initialize the parameters and copy them to the target network.
-    U.initialize()
+    if reload_path:
+        with open(reload_path, "rb") as f:
+            model_data, _ = cloudpickle.load(f)
+
+        with tempfile.TemporaryDirectory() as td:
+            arc_path = os.path.join(td, "packed.zip")
+            with open(arc_path, "wb") as f:
+                f.write(model_data)
+
+            zipfile.ZipFile(arc_path, 'r', zipfile.ZIP_DEFLATED).extractall(td)
+            load_state(os.path.join(td, "model"))
+        learning_starts = buffer_size
+    else:
+        U.initialize()
+    
     update_target()
 
     episode_rewards = [0.0]
@@ -256,7 +280,7 @@ def learn(env,
     reset = True
 
     # recording
-    records = {'q_mean':[], 'q_sd':[], 'loss':[], 'online_reward':[], 'test_reward':[]}
+    records = {'q_mean':[], 'q_sd':[], 'loss':[], 'online_reward':[], 'test_reward':[], 'learning_rate':[]}
 
     with tempfile.TemporaryDirectory() as td:
         model_saved = False
@@ -264,8 +288,12 @@ def learn(env,
     
         ep_losses, ep_means, ep_sds, losses, means, sds = [], [], [], [], [], []
         ep_mean_err, ep_sd_err, mean_errs, sd_errs = [], [], [], []
+        checkpt_loss = []
+        curr_lr = lr
+
+        learning_starts += init_t
         print("===== LEARNING STARTS =====")
-        for t in range(max_timesteps):
+        for t in range(init_t,max_timesteps):
             if callback is not None:
                 if callback(locals(), globals()):
                     break
@@ -276,7 +304,7 @@ def learn(env,
             action = act(np.array(obs)[None], update_eps=update_eps, **kwargs)[0]
             env_action = action
             reset = False
-            new_obs, rew, done, _ = env.step(env_action)
+            new_obs, rew, done, info = env.step(env_action)
 
             # Store transition in the replay buffer.
             timelimit_env = env
@@ -284,27 +312,24 @@ def learn(env,
                 timelimit_env = timelimit_env.env
 
             if timelimit_env._elapsed_steps < timelimit_env._max_episode_steps:
-            # Store transition in the replay buffer.
                 replay_buffer.add(obs, action, rew, new_obs, float(done))
             else:
                 replay_buffer.add(obs, action, rew, new_obs, float(not done))
 
             obs = new_obs
-
             episode_rewards[-1] += rew
             if done:
                 obs = env.reset()
                 episode_rewards.append(0.0)
                 reset = True
+                
                 if losses:
                     ep_losses.append(np.mean(losses))
                     ep_means.append(np.mean(means))
                     ep_sds.append(np.mean(sds))
-                    losses, means, sds = [], [], []
-
                     ep_mean_err.append(np.mean(mean_errs))
                     ep_sd_err.append(np.mean(sd_errs))
-                    mean_errs , sd_errs = [], []
+                    losses, means, sds, mean_errs , sd_errs = [], [], [], [], []
 
             if t > learning_starts and t % train_freq == 0:
                 # Minimize the error in Bellman's equation on a batch sampled from replay buffer.
@@ -315,9 +340,8 @@ def learn(env,
                     obses_t, actions, rewards, obses_tp1, dones = replay_buffer.sample(batch_size)
                     weights, batch_idxes = np.ones_like(rewards), None
 
-
-                stats_t = q_target_vals(obses_t)[0]
-                stats_tp1 = q_target_vals(obses_tp1)[0]
+                stats_t = q_target_vals(obses_t, keep_prob)[0]
+                stats_tp1 = q_target_vals(obses_tp1, keep_prob)[0]
 
                 ind = np.arange(batch_size)
                 mean_t = stats_t[ind,actions.astype(int)]
@@ -334,7 +358,8 @@ def learn(env,
 
                 target_mean = np.reshape(target_mean, (-1))
                 target_sd = np.reshape(target_sd, (-1))
-                loss, m_err, s_err = train(obses_t, actions, target_mean, target_sd, weights)
+                loss, m_err, s_err, curr_lr = train(obses_t, actions, target_mean, target_sd, weights, keep_prob)
+
                 losses.append(loss)
                 means.append(np.mean(mean_tp1))
                 sds.append(np.mean(sd_tp1))
@@ -345,17 +370,29 @@ def learn(env,
                     new_priorities = np.abs(loss) + prioritized_replay_eps
                     replay_buffer.update_priorities(batch_idxes, new_priorities)
 
-            if t > learning_starts and t % target_network_update_freq == 0:
+            if (t+1) > learning_starts and t % target_network_update_freq == 0:
                 # Update target network periodically.
                 update_target()
 
             if (t+1) % epoch_steps == 0 and (t+1) > learning_starts:
+                # Learning Rate 
+                if ep_losses:
+                    mean_loss = np.float16(np.mean(ep_losses))
+                    if len(checkpt_loss) > 2 and mean_loss > np.float16(max(checkpt_loss[-3:])):
+                        sess.run(lr_decay_op)
+                        print("Learning rate decayed due to an increase in loss: %.4f -> %.4f"%(np.float16(max(checkpt_loss[-3:])),mean_loss)) 
+                    elif len(checkpt_loss) > 2 and mean_loss < np.float16(min(checkpt_loss[-3:])):
+                        sess.run(lr_growth_op)
+                        print("Learning rate grown due to a decrease in loss: %.4f -> %.4f"%( np.float16(min(checkpt_loss[-3:])),mean_loss))
+                    checkpt_loss.append(mean_loss)
+
                 test_reward = test(env, act_greedy, nb_test_steps=nb_test_steps)
                 records['test_reward'].append(test_reward)
                 records['q_mean'].append(np.mean(ep_means))
                 records['q_sd'].append(np.mean(ep_sds))
                 records['loss'].append(np.mean(ep_losses))
                 records['online_reward'].append(round(np.mean(episode_rewards[-101:-1]), 1))
+                records['learning_rate'].append(curr_lr)
                 pickle.dump(records, open(os.path.join(save_dir,"records.pkl"),"wb"))
                 print("==== EPOCH %d ==="%((t+1)/epoch_steps))
                 print(tabulate([[k,v[-1]] for (k,v) in records.items()]))
@@ -372,6 +409,7 @@ def learn(env,
                 logger.record_tabular("averaged output sd", np.mean(ep_sds[-print_freq:]))
                 logger.record_tabular("averaged error mean", np.mean(ep_mean_err[-print_freq:]))
                 logger.record_tabular("averaged error sds", np.mean(ep_sd_err[-print_freq:]))
+                logger.record_tabular("learning rate", curr_lr)
                 logger.dump_tabular()
 
             if (checkpoint_freq is not None and (t+1) > learning_starts and
@@ -387,14 +425,9 @@ def learn(env,
                     model_saved = True
                     saved_mean_reward = mean_100ep_reward
 
-        # if model_saved:
-        #     if print_freq is not None:
-        #         logger.log("Restored model with mean reward: {}".format(saved_mean_reward))
-        #     load_state(model_file)
-
     return act, records
 
-def test(env0, act_greedy, nb_itrs=5, nb_test_steps=10000):
+def test(env0, act, nb_itrs=5, nb_test_steps=10000):
     
     env = env0
     while( hasattr(env, 'env')):
@@ -414,23 +447,27 @@ def test(env0, act_greedy, nb_itrs=5, nb_test_steps=10000):
             done = False
             episode_reward = 0
             while not done:
-                action = act_greedy(np.array(obs)[None])[0]
+                action = act(np.array(obs)[None])[0]
                 obs, rew, done, _ = env_new.step(action)
                 episode_reward += rew
             total_rewards.append(episode_reward)
+
         else:
             t = 0
             episodes = []
             episode_reward = 0
             while(t < nb_test_steps):
-                action = act_greedy(np.array(obs)[None])[0]
-                obs, rew, done, _ = env_new.step(action)
+                action = act(np.array(obs)[None])[0]
+                obs, rew, done, info = env_new.step(action)
                 episode_reward += rew
                 if done:
-                    episodes.append(episode_reward)
-                    episode_reward = 0
                     obs = env_new.reset()
+                    if info['ale.lives'] == 0:
+                        episodes.append(episode_reward)
+                        episode_reward = 0
                 t += 1
+            if not(episodes):
+                episodes.append(episode_reward)
             total_rewards.append(np.mean(episodes))
 
     return np.array(total_rewards, dtype=np.float32)

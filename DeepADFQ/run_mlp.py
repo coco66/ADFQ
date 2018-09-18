@@ -1,12 +1,10 @@
-"""
-This code was modified from a OpenAI baseline code - baselines0/baselines0/deepq/experiments/train_cartpole.py for running ADFQ
+"""This code was modified from a OpenAI baseline code - baselines0/baselines0/deepq/experiments/train_cartpole.py for running ADFQ
 """
 from baselines0.common import set_global_seeds
-from baselines0 import logger
 
 import gym
 import models
-import simple
+import simple, pdb
 import numpy as np
 import tensorflow as tf
 import datetime, json, os, argparse
@@ -28,10 +26,13 @@ parser.add_argument('--target_update_freq', type=int, default=500) # This should
 parser.add_argument('--nb_test_steps',type=int, default = None)
 parser.add_argument('--learning_rate', type=float, default=0.0005)
 parser.add_argument('--gamma', type=float, default=.99)
+parser.add_argument('--num_layers', type=int, default=1)
+parser.add_argument('--num_units', type=int, default=64)
 parser.add_argument('--log_dir', type=str, default='.')
 parser.add_argument('--log_fname', type=str, default='model.pkl')
 parser.add_argument('--eps_fraction', type=float, default=0.1)
 parser.add_argument('--eps_min', type=float, default=.02)
+parser.add_argument('--test_eps', type=float, default=.05)
 parser.add_argument('--init_mean', type =float, default=1.)
 parser.add_argument('--init_sd', type=float, default=30.)
 parser.add_argument('--device', type=str, default='/gpu:0')
@@ -53,7 +54,6 @@ def callback(lcl, _glb):
 
 
 def train():
-    logger.configure()
     set_global_seeds(args.seed)
     directory = os.path.join(args.log_dir, '_'.join([args.env, datetime.datetime.now().strftime("%m%d%H%M")]))
     if not os.path.exists(directory):
@@ -65,7 +65,7 @@ def train():
     env = gym.make(args.env)
 
     with tf.device(args.device):
-        model = models.mlp([64], init_mean=args.init_mean, init_sd=args.init_sd)
+        model = models.mlp([args.num_units]*args.num_layers, init_mean=args.init_mean, init_sd=args.init_sd)
 
         act, records = simple.learn(
             env,
@@ -90,6 +90,7 @@ def train():
             save_dir=directory,
             nb_test_steps=args.nb_test_steps,
             scope = args.scope,
+            test_eps = args.test_eps,
         )
         print("Saving model to model.pkl")
         act.save(os.path.join(directory,"model.pkl"))
@@ -100,7 +101,7 @@ def test():
     act = simple.load(os.path.join(args.log_dir, args.log_fname))
     if args.record:
         env = Monitor(env, directory=args.log_dir)
-        
+
     while True:
         obs, done = env.reset(), False
         episode_rew = 0
@@ -112,7 +113,7 @@ def test():
 
 def plot(records, directory):
     import matplotlib
-    matplotlib.use('Agg')
+    matplotlib.use('TkAgg')
     from matplotlib import pyplot as plt
     m = len(records['q_mean'])
     x_vals = range(0 , args.nb_epoch_steps*m, args.nb_epoch_steps)

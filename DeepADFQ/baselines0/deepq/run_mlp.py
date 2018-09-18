@@ -34,6 +34,7 @@ parser.add_argument('--log_dir', type=str, default='.')
 parser.add_argument('--log_fname', type=str, default='model.pkl')
 parser.add_argument('--eps_fraction', type=float, default=0.1)
 parser.add_argument('--eps_min', type=float, default=.02)
+parser.add_argument('--test_eps', type=float, default=.05)
 parser.add_argument('--device', type=str, default='/gpu:0')
 parser.add_argument('--record',type=int, default=0)
 parser.add_argument('--gpu_memory',type=float, default=1.0)
@@ -78,6 +79,7 @@ def train():
             directory=directory,
             double_q = args.double_q,
             nb_test_steps=args.nb_test_steps,
+            test_eps = args.test_eps,
         )
         print("Saving model to model.pkl")
         act.save(os.path.join(directory,"model.pkl"))
@@ -117,7 +119,7 @@ def plot(records, directory):
     ax1.set_xlabel('Learning Steps')
 
     f2, ax2 = plt.subplots()
-    m, ids25, ids75 = iqr(np.array(records['test_reward']).T)
+    m, ids25, ids75 = deepq.iqr(np.array(records['test_reward']).T)
     ax2.plot(x_vals, m, color='b')
     ax2.fill_between(x_vals, list(ids75), list(ids25), facecolor='b', alpha=0.2)
     ax2.set_ylabel('Test Rewards')
@@ -126,23 +128,6 @@ def plot(records, directory):
     f0.savefig(os.path.join(directory, "result.png"))
     f1.savefig(os.path.join(directory, "online_reward.png"))
     f2.savefig(os.path.join(directory, "test_reward.png"))
-
-def iqr(x):
-    """Interquantiles
-    x has to be a 2D np array. The interquantiles are computed along with the axis 1
-    """
-    i25 = int(0.25*x.shape[0])
-    i75 = int(0.75*x.shape[0])
-    x=x.T
-    ids25=[]
-    ids75=[]
-    m = []
-    for y in x:
-        tmp = np.sort(y)
-        ids25.append(tmp[i25])
-        ids75.append(tmp[i75])
-        m.append(np.mean(tmp,dtype=np.float32))
-    return m, ids25, ids75
 
 if __name__ == '__main__':
     if args.mode == 'train':

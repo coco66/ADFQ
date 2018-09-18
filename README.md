@@ -2,11 +2,12 @@ Author: \\
 Heejin Chloe Jeong* (heejinj@seas.upenn.edu)\\
 Clark Zhang (clarkz@seas.upenn.edu)\\
 Daniel D. Lee (ddlee@seas.upenn.edu)\\
+George J. Pappas (pappasg@seas.upenn.edu)\\
 
 * Assumed Density Filtering Q-learning (https://arxiv.org/abs/1712.03333)
 
 ## Requirement 
-The ADFQ codes for the finite state and action spaces (directly under the ADFQ directory) work both in python 2.7.x and python 3.
+The ADFQ codes for the finite state and action spaces (directly under the ADFQ directory) work both in python 2.7.x and python 3. For continuous state space, you can use Deep ADFQ (ADFQ/DeepADFQ).\\
 Clone the repo
 ```
 git clone https://github.com/coco66/ADFQ.git
@@ -29,16 +30,16 @@ And running ADFQ in Cartpole-v0
 ```
 python run_mlp.py
 ```
-set callback=None in line 78 if you don't want it to end its training after reaching 199.
+set callback=None in line 78 if you don't want it to end its training after reaching a maximum time step of a task (e.g. 199 for CartPole).\\
 Running ADFQ in an atari game, for example, Asterix-v0
 ```
-python run_atari.py --env AsterixDeterministic-v4 --act_policy bayesian
+python run_atari.py --env AsterixNoFrameskip-v4 --act_policy bayesian
 ```
 ## Citing
 If you use this repo in your research, you can cite it as follows:
 ```bibtex
 @misc{ADFQrepo,
-    author = {Heejin Jeong, Clark Zhang, Daniel D. Lee},
+    author = {Heejin Jeong, Clark Zhang, Daniel D. Lee, George J. Pappas},
     title = {ADFQ_public},
     year = {2018},
     publisher = {GitHub},
