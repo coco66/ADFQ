@@ -276,6 +276,11 @@ def learn(env,
 
     episode_rewards = [0.0]
     saved_mean_reward = None
+    timelimit_env = env
+    while( not hasattr(timelimit_env, '_elapsed_steps')):
+        timelimit_env = timelimit_env.env
+    isAtari = hasattr(timelimit_env.env, 'ale')
+    env_id = timelimit_env.env.spec.id
     obs = env.reset()
     reset = True
 
@@ -307,10 +312,6 @@ def learn(env,
             new_obs, rew, done, info = env.step(env_action)
 
             # Store transition in the replay buffer.
-            timelimit_env = env
-            while( not hasattr(timelimit_env, '_elapsed_steps')):
-                timelimit_env = timelimit_env.env
-
             if timelimit_env._elapsed_steps < timelimit_env._max_episode_steps:
                 replay_buffer.add(obs, action, rew, new_obs, float(done))
             else:
@@ -386,7 +387,7 @@ def learn(env,
                         print("Learning rate grown due to a decrease in loss: %.4f -> %.4f"%( np.float16(min(checkpt_loss[-3:])),mean_loss))
                     checkpt_loss.append(mean_loss)
 
-                test_reward = test(env, act_greedy, nb_test_steps=nb_test_steps)
+                test_reward = test(env_id, isAtari, act_greedy, nb_test_steps=nb_test_steps)
                 records['test_reward'].append(test_reward)
                 records['q_mean'].append(np.mean(ep_means))
                 records['q_sd'].append(np.mean(ep_sds))
@@ -427,20 +428,16 @@ def learn(env,
 
     return act, records
 
-def test(env0, act, nb_itrs=5, nb_test_steps=10000):
+def test(env_id, isAtari, act, nb_itrs=5, nb_test_steps=10000):
     
-    env = env0
-    while( hasattr(env, 'env')):
-        env = env.env
-
     total_rewards = []
     for _ in range(nb_itrs):
-        if hasattr(env, 'ale'):
+        if isAtari:
             from baselines0.common.atari_wrappers import make_atari
-            env_new = make_atari(env.spec.id)
+            env_new = make_atari(env_id)
             env_new = models.wrap_atari_dqn(env_new)
         else:
-            env_new = gym.make(env.spec.id)
+            env_new = gym.make(env_id)
         obs = env_new.reset()
 
         if nb_test_steps is None:
@@ -462,7 +459,7 @@ def test(env0, act, nb_itrs=5, nb_test_steps=10000):
                 episode_reward += rew
                 if done:
                     obs = env_new.reset()
-                    if info['ale.lives'] == 0:
+                    if isAtari and info['ale.lives'] == 0:
                         episodes.append(episode_reward)
                         episode_reward = 0
                 t += 1
