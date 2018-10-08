@@ -28,6 +28,8 @@ EVAL_NUM = 100
 EVAL_STEPS = 50
 EVAL_EPS = 0.0
 DTYPE = np.float64
+REW_VAR0 = 1e-5
+
 color2num = dict(
     gray=30,
     red=31,
@@ -78,7 +80,7 @@ def rbf(state, action, dim, const=1.0):
     return phi
 
 def posterior_numeric(n_means, n_vars, c_mean, c_var, reward, discount, terminal, varTH = 1e-10,
-        scale_factor=1.0, num_interval=2000, width=10.0, noise=0.0, batch=False, REW_VAR = 1e-5):
+        scale_factor=1.0, num_interval=2000, width=10.0, noise=0.0, batch=False, REW_VAR = REW_VAR0):
     """ADFQ - Numeric posterior update
     Parameters
     ----------
@@ -97,7 +99,6 @@ def posterior_numeric(n_means, n_vars, c_mean, c_var, reward, discount, terminal
         batch : True if you are using a batch update
         REW_VAR : when terminal == True, TD target = reward. p(r) = Gaussian with mean=0 and variance = REW_VAR.
     """ 
-    c_var = c_var + noise
     if batch:
         batch_size = n_means.shape[0]
         c_mean = np.reshape(c_mean, (batch_size,1))
@@ -119,8 +120,8 @@ def posterior_numeric(n_means, n_vars, c_mean, c_var, reward, discount, terminal
     target_means = reward + discount*np.array(n_means, dtype = DTYPE)
     target_vars = discount*discount*np.array(n_vars, dtype = DTYPE)        
     
-    bar_vars = 1./(1/c_var + 1./target_vars)
-    bar_means = bar_vars*(c_mean/c_var + target_means/target_vars)
+    bar_vars = 1./(1/c_var + 1./(target_vars + noise))
+    bar_means = bar_vars*(c_mean/c_var + target_means/(target_vars+noise))
     if (target_vars < 0.0).any() or (bar_vars < 0.0).any():
         pdb.set_trace()
     sd_range = np.sqrt(np.concatenate((target_vars, bar_vars) ,axis=-1), dtype=DTYPE)
@@ -134,7 +135,7 @@ def posterior_numeric(n_means, n_vars, c_mean, c_var, reward, discount, terminal
         var_new = []
         for j in range(batch_size):
             m, v, _ = posterior_numeric_helper(target_means[j], target_vars[j], c_mean[j], c_var[j], 
-                bar_means[j], bar_vars[j], x_max[j], x_min[j], interval[j])
+                bar_means[j], bar_vars[j], x_max[j], x_min[j], interval[j], noise=noise)
             mean_new.append(m)
             var_new.append(v)
 
@@ -143,16 +144,17 @@ def posterior_numeric(n_means, n_vars, c_mean, c_var, reward, discount, terminal
         return mean_new, np.maximum(varTH, var_new), None
     else:
         mean_new, var_new, (x, prob) = posterior_numeric_helper(target_means, target_vars, c_mean, c_var, 
-            bar_means, bar_vars,  x_max, x_min, interval)
+            bar_means, bar_vars,  x_max, x_min, interval, noise = noise)
         if np.isnan(var_new).any():
             print("Variance is NaN")
         return mean_new, np.maximum(varTH, var_new), (x, prob)
 
-def posterior_numeric_helper(target_means, target_vars, c_mean, c_var, bar_means, bar_vars,  x_max, x_min, interval):
+def posterior_numeric_helper(target_means, target_vars, c_mean, c_var, bar_means, bar_vars,  
+        x_max, x_min, interval, noise = 0.0):
     """ADFQ - Numeric posterior update helper function
     """
     anum = target_means.shape[-1]
-    add_vars = c_var+target_vars
+    add_vars = c_var+target_vars+noise
     x = np.append(np.arange(x_min, x_max, interval), x_max)
     cdfs = np.array([norm.cdf(x, target_means[i], np.sqrt(target_vars[i])) for i in range(anum)])
     nonzero_ids = []
@@ -189,7 +191,7 @@ def posterior_numeric_helper(target_means, target_vars, c_mean, c_var, bar_means
 
     return m, interval*np.inner((x-m)**2, prob_tot), (x, prob_tot)
     
-def posterior_adfq(n_means, n_vars, c_mean, c_var, reward, discount, terminal, varTH=1e-20, REW_VAR = 1e-5, 
+def posterior_adfq(n_means, n_vars, c_mean, c_var, reward, discount, terminal, varTH=1e-20, REW_VAR = REW_VAR0, 
         scale_factor = 1.0, asymptotic = False, asymptotic_trigger = 1e-20, noise = 0.0, batch=False, plot=False):
     """ADFQ posterior update
     Parameters
@@ -209,14 +211,13 @@ def posterior_adfq(n_means, n_vars, c_mean, c_var, reward, discount, terminal, v
         batch : True if you are using a batch update
         REW_VAR : when terminal == True, TD target = reward. p(r) = Gaussian with mean=0 and variance = REW_VAR.
     """         
-    c_var = c_var + noise
     target_vars = discount*discount*np.array(n_vars, dtype=DTYPE)
     t = asymptotic_trigger/scale_factor
     if batch:
         batch_size = n_means.shape[0]
         target_means = np.reshape(reward , (batch_size,1))+ discount*np.array(n_means, dtype=DTYPE)
         stats = posterior_adfq_batch_helper(target_means, target_vars, c_mean, c_var, discount,
-            scale_factor=scale_factor, asymptotic=asymptotic)
+            scale_factor=scale_factor, asymptotic=asymptotic, noise)
         reward = np.array(reward, dtype=DTYPE)
         terminal = np.array(terminal, dtype=int)
         if asymptotic :
@@ -225,7 +226,7 @@ def posterior_adfq(n_means, n_vars, c_mean, c_var, reward, discount, terminal, v
     else:
         target_means = reward + discount*np.array(n_means, dtype=DTYPE)
         stats = posterior_adfq_helper(target_means, target_vars, c_mean, c_var, discount,
-            scale_factor=scale_factor, asymptotic=asymptotic)
+            scale_factor=scale_factor, asymptotic=asymptotic, noise=noise)
         stats = stats[np.newaxis,:]
         if asymptotic and (n_vars <= t).all() and (c_var <= t):
             b_rep = np.argmin(stats[:,:,2], axis=-1)
@@ -240,8 +241,8 @@ def posterior_adfq(n_means, n_vars, c_mean, c_var, reward, discount, terminal, v
     var_new = np.sum(weights*stats[:,:,1], axis=-1) \
                 + np.sum(v*(stats[:,:,0] - mean_new),axis=-1)/scale_factor #+ (np.sum(weights*(stats[:,:,0]**2),axis=-1) - mean_new**2)/scale_factor
         
-    var_new  = (1.-terminal)*var_new + terminal*1./(1./c_var + scale_factor/REW_VAR)
-    mean_new = (1.-terminal)*np.squeeze(mean_new) + terminal*var_new*(c_mean/c_var + scale_factor*reward/REW_VAR)
+    var_new  = (1.-terminal)*var_new + terminal*1./(1./c_var + scale_factor/(REW_VAR + noise))
+    mean_new = (1.-terminal)*np.squeeze(mean_new) + terminal*var_new*(c_mean/c_var + scale_factor*reward/(REW_VAR+noise))
     if np.isnan(mean_new).any() or np.isnan(var_new).any():
         pdb.set_trace()
     if batch:
@@ -249,7 +250,7 @@ def posterior_adfq(n_means, n_vars, c_mean, c_var, reward, discount, terminal, v
     else:
         return mean_new[0], np.maximum(varTH, var_new[0]), (np.squeeze(stats[:,:,0]), np.squeeze(stats[:,:,1]), np.squeeze(weights))
 
-def posterior_adfq_batch_helper(target_means, target_vars, c_mean, c_var, discount, scale_factor, asymptotic=False):
+def posterior_adfq_batch_helper(target_means, target_vars, c_mean, c_var, discount, scale_factor, asymptotic=False, noise=0.0):
     """ADFQ posterior update helper function for batch update
     """
     batch_stats = []
@@ -258,7 +259,7 @@ def posterior_adfq_batch_helper(target_means, target_vars, c_mean, c_var, discou
         batch_stats.append(stats)
     return np.array(batch_stats)
 
-def posterior_adfq_helper(target_means, target_vars, c_mean, c_var, discount, scale_factor, asymptotic=False):
+def posterior_adfq_helper(target_means, target_vars, c_mean, c_var, discount, scale_factor, asymptotic=False, noise=0.0):
     """ADFQ posterior update helper function
     """
     anum = target_means.shape[-1]
@@ -266,29 +267,34 @@ def posterior_adfq_helper(target_means, target_vars, c_mean, c_var, discount, sc
     dis2 = discount*discount
     rho_vars = c_var/target_vars*dis2 
     sorted_idx = np.flip(np.argsort(target_means), axis=-1)
-    bar_vars = 1./(1./c_var + 1./target_vars)
-    bar_means = bar_vars*(c_mean/c_var + target_means/target_vars)
-    add_vars = c_var + target_vars
+    bar_vars = 1./(1./c_var + 1./(target_vars+noise))
+    bar_means = bar_vars*(c_mean/c_var + target_means/(target_vars+noise))
+    add_vars = c_var + target_vars + noise
+
     stats = {}
     # Search a range for mu_star
     for (j,b) in enumerate(sorted_idx):
-        b_primes = [c for c in sorted_idx if c!=b]
+        b_primes = [c for c in sorted_idx if c!=b] # anum-1
         upper = 1e+20
         vals = []
+        rho_w = noise/target_vars[b]
+        
+        target_means_w = target_means 
+        target_vars_w = target_vars
         for i in range(anum):
-            lower = -1e+20 if i==(anum-1) else target_means[b_primes[i]]
-            mu_star = np.float64( (bar_means[b] + sum(target_means[b_primes[:i]]*rho_vars[b_primes[:i]])/(dis2+rho_vars[b]))\
+            lower = -1e+20 if i==(anum-1) else target_means_w[b_primes[i]]
+            mu_star = np.float64( (bar_means[b] + sum(target_means_w[b_primes[:i]]*rho_vars[b_primes[:i]])/(dis2+rho_vars[b]))\
                 /(1+sum(rho_vars[b_primes[:i]])/(dis2+rho_vars[b])))
             vals.append((lower,mu_star,upper))
             if (np.float16(mu_star) >= np.float16(lower)) and (np.float16(mu_star) <= np.float16(upper)):
-                var_star = 1./(1./bar_vars[b] + sum(1./target_vars[b_primes[:i]]))
+                var_star = 1./(1./bar_vars[b] + sum(1./target_vars_w[b_primes[:i]]))
                 if asymptotic : 
                     logk = (target_means[b]-c_mean)**2/add_vars[b] + (mu_star-bar_means[b])**2/bar_vars[b] \
-                        + sum( (target_means[b_primes[:i]]-mu_star)**2/target_vars[b_primes[:i]] )
+                        + sum( (target_means_w[b_primes[:i]]-mu_star)**2/target_vars_w[b_primes[:i]] )
                 else:
                     logk = 0.5*(np.log(var_star) - np.log(bar_vars[b]) - np.log(2*np.pi) - np.log(add_vars[b])) \
                         - 0.5/scale_factor*( (target_means[b]-c_mean)**2/add_vars[b] + (mu_star-bar_means[b])**2/bar_vars[b] \
-                            + sum( (target_means[b_primes[:i]]-mu_star)**2/target_vars[b_primes[:i]] ))
+                            + sum( (target_means_w[b_primes[:i]]-mu_star)**2/target_vars_w[b_primes[:i]] ))
                 stats[b]= (mu_star, var_star, logk)
                 break
             upper = lower
@@ -298,7 +304,7 @@ def posterior_adfq_helper(target_means, target_vars, c_mean, c_var, discount, sc
     return np.array([stats[i] for i in range(anum)], dtype=DTYPE)
 
 
-def posterior_adfq_v2(n_means, n_vars, c_mean, c_var, reward, discount, terminal, varTH=1e-20, REW_VAR = 1e-5, 
+def posterior_adfq_v2(n_means, n_vars, c_mean, c_var, reward, discount, terminal, varTH=1e-20, REW_VAR = REW_VAR0, 
         logEps=-1e+20,  scale_factor = 1.0, asymptotic=False, asymptotic_trigger = 1e-20, batch=False, noise=0.0):
     """ADFQ posterior update version 2 (presented in appendix of the ADFQ paper)
     Parameters
@@ -319,7 +325,6 @@ def posterior_adfq_v2(n_means, n_vars, c_mean, c_var, reward, discount, terminal
         batch : True if you are using a batch update
         REW_VAR : when terminal == True, TD target = reward. p(r) = Gaussian with mean=0 and variance = REW_VAR.
     """
-    c_var = c_var + noise
     if batch:
         batch_size = len(n_means)
         c_mean = np.reshape(c_mean, (batch_size,1))
@@ -329,9 +334,10 @@ def posterior_adfq_v2(n_means, n_vars, c_mean, c_var, reward, discount, terminal
 
     target_means = reward +discount*np.array(n_means, dtype = DTYPE)
     target_vars = discount*discount*(np.array(n_vars, dtype = DTYPE))
-    bar_vars = 1./(1./c_var + 1./target_vars)
-    bar_means = bar_vars*(c_mean/c_var + target_means/target_vars)
-    add_vars = c_var + target_vars
+    bar_vars = 1./(1./c_var + 1./(target_vars + noise))
+    bar_means = bar_vars*(c_mean/c_var + target_means/(target_vars + noise))
+    add_vars = c_var + target_vars + noise
+
 
     sorted_idx = np.argsort(target_means, axis=int(batch))
     if batch:
@@ -359,8 +365,8 @@ def posterior_adfq_v2(n_means, n_vars, c_mean, c_var, reward, discount, terminal
     var_new = (np.sum(np.multiply(weights, bar_means**2), axis=int(batch), keepdims=batch) - mean_new**2)/scale_factor \
                 + np.sum(np.multiply(weights, bar_vars), axis=int(batch), keepdims=batch)
     # For Terminals
-    var_new  = (1.-terminal)*var_new + terminal*1./(1./c_var + scale_factor/REW_VAR)
-    mean_new = (1.-terminal)*mean_new + terminal*var_new*(c_mean/c_var + scale_factor*reward/REW_VAR)
+    var_new  = (1.-terminal)*var_new + terminal*1./(1./c_var + scale_factor/(REW_VAR+noise))
+    mean_new = (1.-terminal)*mean_new + terminal*var_new*(c_mean/c_var + scale_factor*reward/(REW_VAR+noise))
     if np.isnan(mean_new).any() or np.isnan(var_new).any():
         pdb.set_trace()
     if batch:
