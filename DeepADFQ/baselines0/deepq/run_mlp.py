@@ -72,6 +72,7 @@ def train():
             print_freq=10,
             checkpoint_freq=int(args.nb_train_steps/10),
             learning_starts=args.nb_warmup_steps,
+            target_network_update_freq = args.target_update_freq,
             gamma = args.gamma,
             callback=None,#callback,
             epoch_steps = args.nb_epoch_steps,
