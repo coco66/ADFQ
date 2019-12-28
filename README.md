@@ -1,30 +1,22 @@
-Author: \\
-Heejin Chloe Jeong* (heejinj@seas.upenn.edu)\\
-Clark Zhang (clarkz@seas.upenn.edu)\\
-Daniel D. Lee (ddlee@seas.upenn.edu)\\
-George J. Pappas (pappasg@seas.upenn.edu)\\
+This repository contains the ADFQ algorithms as well as target tracking environments (ADFQ/envs/target_tracking). See the following papers for more technical details.
 
-* Assumed Density Filtering Q-learning (https://arxiv.org/abs/1712.03333)
+* Assumed Density Filtering Q-learning (https://arxiv.org/abs/1712.03333) : H. Jeong, C. Zhang, D. D. Lee, and G. J. Pappas, “Assumed Density Filtering Q-learning,” the 28th International Joint Conference on Artificial Intelligence (IJCAI), Macao, China, 2019
+* Learning Q-network for Active Information Acquisition (https://arxiv.org/abs/1910.10754) : H. Jeong, B. Schlotfeldt, H. Hassani, M. Morari, D. D. Lee, and G. J. Pappas, “Learning Q-network for Active Information Acquisition,”, IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS), Macao, China, 2019
 
-## Requirement 
+## Requirement
 The ADFQ codes for the finite state and action spaces (directly under the ADFQ directory) work both in python 2.7.x and python 3. For continuous state space, you can use Deep ADFQ (ADFQ/DeepADFQ).\\
 Clone the repo
 ```
 git clone https://github.com/coco66/ADFQ.git
+cd ADFQ && source setup
 ```
-In order to run DeepADFQ, you need python 3 (>=3.5) and tensorflow-gpu.
-We include some codes from OpenAI baselines (due to the repository stability issue, we are not directly using the OpenAI baseline git repo). You may need some packages mentioned in the installation guidelines at https://github.com/openai/baselines. 
-
-You need to export python paths:
-```
-export PYTHONPATH=PATH_TO_ADFQ:$PYTHONPATH
-export PYTHONPATH=PATH_TO_ADFQ/DeepADFQ:$PYTHONPATH
-```
+In order to run deepadfq, python 3 (>=3.5) and tensorflow-gpu are recommended.
+We include some codes from OpenAI baselines (due to the repository stability issue, we are not directly using the OpenAI baseline git repo). You may need some packages mentioned in the installation guidelines at https://github.com/openai/baselines.
 
 ## Example for running ADFQ algorithm
-
+Classic environments:
 ```
-python run_brl.py --env loop
+python run_adfq.py --env loop
 ```
 And running ADFQ in Cartpole-v0
 ```
