@@ -80,7 +80,7 @@ def train(seed, save_dir):
             gamma = args.gamma,
             prioritized_replay=bool(args.prioritized),
             prioritized_replay_alpha=args.prioritized_replay_alpha,
-            callback=None,#callback,
+            callback=callback,
             scope=args.scope,
             double_q = args.double_q,
             epoch_steps = args.nb_epoch_steps,

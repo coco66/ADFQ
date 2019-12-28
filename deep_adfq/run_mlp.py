@@ -84,7 +84,7 @@ def train(seed, save_dir):
             gamma=args.gamma,
             prioritized_replay=bool(args.prioritized),
             prioritized_replay_alpha=args.prioritized_replay_alpha,
-            callback=None,#callback,
+            callback=callback,
             alg=args.alg,
             scope=args.scope,
             sdMin=np.sqrt(args.varth),
