@@ -4,14 +4,15 @@ This repository contains the ADFQ algorithms as well as target tracking environm
 * Learning Q-network for Active Information Acquisition (https://arxiv.org/abs/1910.10754) : H. Jeong, B. Schlotfeldt, H. Hassani, M. Morari, D. D. Lee, and G. J. Pappas, “Learning Q-network for Active Information Acquisition,”, IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS), Macao, China, 2019
 
 ## Requirement
-The ADFQ codes for the finite state and action spaces (directly under the ADFQ directory) work both in python 2.7.x and python 3. For continuous state space, you can use Deep ADFQ (ADFQ/DeepADFQ).\\
+The ADFQ codes for the finite state and action spaces (directly under the ADFQ directory) work both in python 2.7.x and python 3. For deep ADFQ, python 3 (>=3.5) and tensorflow-gpu are recommended.
+
+## Installation
 Clone the repo
 ```
 git clone https://github.com/coco66/ADFQ.git
 cd ADFQ && source setup
 ```
-In order to run deepadfq, python 3 (>=3.5) and tensorflow-gpu are recommended.
-We include some codes from OpenAI baselines (due to the repository stability issue, we are not directly using the OpenAI baseline git repo). You may need some packages mentioned in the installation guidelines at https://github.com/openai/baselines.
+Use the Dockerfile or install the dependencies individually. We include a part of codes from OpenAI baselines (due to the repository stability issue, we are not directly using the current version of the OpenAI baseline git repo). You may need some packages mentioned in the installation guidelines at https://github.com/openai/baselines.
 
 ## Example for running ADFQ algorithm
 Classic environments:
