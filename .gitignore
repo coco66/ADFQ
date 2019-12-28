@@ -1,7 +1,6 @@
-DeepADFQ/*.pyc
+deep_adfq/*.pyc
 results
-DeepADFQ/results
-optQ
+deep_adfq/results
+envs/optQ
 *.png
 *.pyc
-data_tmp

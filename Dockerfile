@@ -5,7 +5,7 @@ RUN apt-get -y update && apt-get -y upgrade && apt-get -y install sudo git wget 
 RUN pip3 install --upgrade pip
 
 RUN pip3 install pyyaml scipy numpy tabulate tensorflow-gpu matplotlib
-RUN pip3 install gym[mujoco,atari,classic_control,robotics] tqdm joblib zmq dill progressbar2 mpi4py cloudpickle click opencv-python
+RUN pip3 install gym[atari,classic_control] tqdm joblib zmq dill progressbar2 mpi4py cloudpickle click opencv-python
 
 WORKDIR /tmp/
 
@@ -21,4 +21,3 @@ USER developer
 
 ENV HOME /home/developer/Desktop/docker-code/
 WORKDIR /home/developer/Desktop/docker-code/
-
