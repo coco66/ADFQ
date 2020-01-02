@@ -1,3 +1,4 @@
+# Bayesian Q-learning with Explicit Uncertainty Measures : Assumed Density Filtering Q-learning (ADFQ)
 This repository contains the ADFQ algorithms as well as target tracking environments (ADFQ/envs/target_tracking). See the following papers for more technical details.
 
 * Assumed Density Filtering Q-learning (https://arxiv.org/abs/1712.03333) : H. Jeong, C. Zhang, D. D. Lee, and G. J. Pappas, “Assumed Density Filtering Q-learning,” the 28th International Joint Conference on Artificial Intelligence (IJCAI), Macao, China, 2019
