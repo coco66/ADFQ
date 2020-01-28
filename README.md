@@ -3,10 +3,6 @@ This repository contains the ADFQ algorithms from the following paper. See the p
 
 * Assumed Density Filtering Q-learning (https://arxiv.org/abs/1712.03333) : H. Jeong, C. Zhang, D. D. Lee, and G. J. Pappas, “Assumed Density Filtering Q-learning,” the 28th International Joint Conference on Artificial Intelligence (IJCAI), Macao, China, 2019
 
-# Target Tracking Environment (OpenAI gym framework)
-This repository also contains target tracking environments under ADFQ/envs/target_tracking. It can be used as the same way as you use an environment from the openAI gym. This environment is used in the following paper which applies RL to active target tracking problems.
-* Learning Q-network for Active Information Acquisition (https://arxiv.org/abs/1910.10754) : H. Jeong, B. Schlotfeldt, H. Hassani, M. Morari, D. D. Lee, and G. J. Pappas, “Learning Q-network for Active Information Acquisition,”, IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS), Macao, China, 2019
-
 ## Requirement
 The ADFQ codes for the finite state and action spaces (directly under the ADFQ directory) work both in python 2.7.x and python 3. For deep ADFQ, python 3 (>=3.5) and tensorflow-gpu are recommended.
 
@@ -32,12 +28,16 @@ Running ADFQ in an atari game, for example, Asterix-v0
 ```
 python run_atari.py --env AsterixNoFrameskip-v4 --act_policy bayesian
 ```
+## Usage with Target Tracking Environment
+This repository also contains example codes to run the presented RL algorithms in the target tracking environments (https://github.com/coco66/ttenv). Please install the ttenv repository separately in order to use deep_adfq/run_tracking.py or deep_adfq/baselines0/deepq/run_tracking.py. The related work is presented in the following paper:
+* Learning Q-network for Active Information Acquisition (https://arxiv.org/abs/1910.10754) : H. Jeong, B. Schlotfeldt, H. Hassani, M. Morari, D. D. Lee, and G. J. Pappas, “Learning Q-network for Active Information Acquisition,”, IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS), Macao, China, 2019
+
 ## Citing
 If you use this repo in your research, you can cite it as follows:
 ```bibtex
 @misc{ADFQrepo,
     author = {Heejin Jeong, Clark Zhang, Daniel D. Lee, George J. Pappas},
-    title = {ADFQ_public},
+    title = {ADFQ_open_source},
     year = {2018},
     publisher = {GitHub},
     journal = {GitHub repository},
