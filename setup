@@ -1,2 +1,2 @@
-PYTHONPATH="${PYTHONPATH}:$PWD/.:$PWD/classic_adfq:$PWD/deep_adfq:$PWD/../infoplanner/lib"
+PYTHONPATH="${PYTHONPATH}:$PWD/.:$PWD/classic_adfq:$PWD/deep_adfq:$PWD/../infoplanner/lib:$PWD/../ttenv"
 export PYTHONPATH
