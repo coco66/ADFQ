@@ -1,7 +1,10 @@
 # Bayesian Q-learning with Explicit Uncertainty Measures : Assumed Density Filtering Q-learning (ADFQ)
-This repository contains the ADFQ algorithms as well as target tracking environments (ADFQ/envs/target_tracking). See the following papers for more technical details.
+This repository contains the ADFQ algorithms from the following paper. See the paper for more technical details.
 
 * Assumed Density Filtering Q-learning (https://arxiv.org/abs/1712.03333) : H. Jeong, C. Zhang, D. D. Lee, and G. J. Pappas, “Assumed Density Filtering Q-learning,” the 28th International Joint Conference on Artificial Intelligence (IJCAI), Macao, China, 2019
+
+# Target Tracking Environment (OpenAI gym framework)
+This repository also contains target tracking environments under ADFQ/envs/target_tracking. It can be used as the same way as you use an environment from the openAI gym. This environment is used in the following paper which applies RL to active target tracking problems.
 * Learning Q-network for Active Information Acquisition (https://arxiv.org/abs/1910.10754) : H. Jeong, B. Schlotfeldt, H. Hassani, M. Morari, D. D. Lee, and G. J. Pappas, “Learning Q-network for Active Information Acquisition,”, IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS), Macao, China, 2019
 
 ## Requirement
