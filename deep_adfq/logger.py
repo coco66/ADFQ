@@ -7,33 +7,45 @@ from tabulate import tabulate
 import envs
 
 class Logger():
-    def __init__(self, env_id, env_type, variables=None, save_dir=".", **kwargs):
+    def __init__(self, env_id, env_type, variables=None, save_dir=".",
+                                                eval_type='random', **kwargs):
+        """
+        Parameters
+        ---------
+        env_id : environment name to make a new environment.
+        env_type : one of ['atari', 'classic_control', 'classic_mdp','target_tracking']
+        variables : additional variables to log.
+        save_dir : a path to a directory to save logging results.
+        eval_type : only matters for ttenv environments. One of ['random', 'random_zone', 'fixed']
+        """
         self.epoch_num = 0
-        self.ep_history = {'loss':[], 'q':[], 'q_err':[], 'ep_rewards':[0.0]}
-        self.step_history = {'loss':[], 'q':[], 'q_err':[]}
-        self.records = {'online_reward':[], 'test_reward':[], 'q':[], 'q_err':[],
-            'loss':[], 'learning_rate':[], 'time_spent':[]}
+        self.step_history = {'loss':[]}
+        self.ep_history = {'ep_rewards':[0.0], 'loss':[]}
+        self.records = {'online_reward':[], 'test_reward':[], 'time_spent':[]}
         if variables:
             for v in variables:
-                self.ep_history[v] = []
                 self.step_history[v] = []
+                self.ep_history[v] = []
                 self.records[v] = []
 
         self.save_file = os.path.join(save_dir, "records.pkl")
         self.save_dir = save_dir
         self.s_time = time.time()
         self.env_type = env_type
-        self.eval_f = lambda x : evaluation(x, env_id, env_type, **kwargs)
+
         if env_type == 'target_tracking':
             self.records['mean_nlogdetcov'] = []
+            init_pose_list = pickle.load(open(kwargs['init_file_path'], "rb")) if eval_type == 'fixed' else []
+            nb_itrs = len(init_pose_list) if eval_type == 'fixed' else 5
+            self.eval_f = lambda x : evaluation_ttenv(x, env_id, eval_type=eval_type,
+                            nb_itrs=nb_itrs, init_pose_list=init_pose_list, **kwargs)
+        else:
+            self.eval_f = lambda x : evaluation(x, env_id, env_type, **kwargs)
 
     def log_reward(self, reward):
         self.ep_history['ep_rewards'][-1] += reward
 
-    def log_step(self, loss, q, q_err, **kwargs):
-        self.step_history['loss'].append(loss)
-        self.step_history['q'].append(q)
-        self.step_history['q_err'].append(q_err)
+    def log_step(self, **kwargs):
         for (k,v) in kwargs.items():
             if not(k in self.step_history):
                 raise KeyError("No key exists - %s"%k)
@@ -45,11 +57,10 @@ class Logger():
                 if k == 'ep_rewards':
                     self.ep_history[k].append(0.0)
                 else:
-                    if self.step_history[k]:
-                        v.append(np.mean(self.step_history[k]))
-                        self.step_history[k] = []
+                    v.append(np.mean(self.step_history[k]))
+                    self.step_history[k] = []
 
-    def log_epoch(self, act, lr, **kwargs):
+    def log_epoch(self, act, **kwargs):
         test_reward, mean_nlogdetcov = self.eval_f(act)
         for (k,v) in self.records.items():
             if k == 'online_reward':
@@ -59,8 +70,6 @@ class Logger():
                 v.append(test_reward)
             elif k == 'mean_nlogdetcov':
                 v.append(mean_nlogdetcov)
-            elif k == 'learning_rate':
-                v.append(lr)
             elif k == 'time_spent':
                 v.append(time.time() - self.s_time)
                 self.s_time = time.time()
@@ -86,48 +95,53 @@ class Logger():
         from util import mstd
 
         x_vals = range(0, nb_train_steps+1, nb_epoch_steps)
-
-        # Results to plot except online reward and test reward.
-        N = len(self.records) - 3 - int('mean_nlogdetcov' in self.records)
-        nrows = 3 if N == 6 else 2
-        f, ax = plt.subplots(nrows=nrows, ncols=int((N-1)/nrows)+1,
-                                sharex=True, sharey=False)
-        i = 0
+        # Plot online reward and test reward.
         for (k,v) in self.records.items():
-            if len(v) > 0:
-                if k == 'test_reward' or k == 'mean_nlogdetcov' or k == 'online_reward':
+            v = np.array(v)
+            if len(v.shape) == 3:
+                for i in range(v.shape[1]):
                     f0, ax0 = plt.subplots()
-                    if len(np.array(v).shape) == 2:
-                        m, ids25, ids75 = mstd(np.array(v).T)
-                        # If the number of warmup steps > the number of epoch
-                        # step or there is no episode completed, v may not have
-                        # the same length with the x_vals.
-                        _ = ax0.plot(x_vals[-len(v):], m, color='b')
-                        _ = ax0.fill_between(x_vals[-len(v):], list(ids75),
-                                            list(ids25), facecolor='b', alpha=0.2)
-                    else:
-                        _ = ax0.plot(x_vals[-len(v):], v, color='b')
+                    m, ids25, ids75 = mstd(v[:,i,:].T)
+                    # If the number of warmup steps > the number of epoch
+                    # step or there is no episode completed, v may not have
+                    # the same length with the x_vals.
+                    _ = ax0.plot(x_vals[-len(v):], m, color='b')
+                    _ = ax0.fill_between(x_vals[-len(v):], list(ids75),
+                                        list(ids25), facecolor='b', alpha=0.2)
+                    if k == 'mean_nlogdetcov':
+                        _ = ax0.set_ylim(-1500, 3000)
                     _ = ax0.grid()
                     _ = ax0.set_ylabel(k)
                     _ = ax0.set_xlabel('Learning Steps')
                     if x_vals[-len(v)] < nb_warmup_steps:
                         _ = ax0.axvline(x=nb_warmup_steps, color='k')
-                    _ = f0.savefig(os.path.join(self.save_dir, "%s.png"%k))
-                else:
-                    if k != 'time_spent':
-                        row = i%nrows
-                        col = int(i/nrows)
-                        _ = ax[row][col].plot(x_vals[-len(v):], np.array(v, dtype=np.float16))
-                        _ = ax[row][col].set_ylabel(k)
-                        _ = ax[row][col].grid()
-                        if col == int((N-1)/nrows):
-                            _ = ax[row][col].yaxis.tick_right()
-                        if row == nrows-1:
-                            _ = ax[row][col].set_xlabel('Learning Steps')
-                        i += 1
-        _ = f.savefig(os.path.join(self.save_dir, "result.png"))
+                    _ = f0.savefig(os.path.join(self.save_dir, "%s_eval_%d.png"%(k,i)))
 
-def evaluation(act, env_id, env_type, nb_test_steps=None, nb_itrs=5, render=False, **kwargs):
+            elif len(v) > 0 and (k == 'test_reward' or k == 'mean_nlogdetcov' or k == 'online_reward'):
+                f0, ax0 = plt.subplots()
+                if len(v.shape) == 2:
+                    m, ids25, ids75 = mstd(v.T)
+                    # If the number of warmup steps > the number of epoch
+                    # step or there is no episode completed, v may not have
+                    # the same length with the x_vals.
+                    _ = ax0.plot(x_vals[-len(v):], m, color='b')
+                    _ = ax0.fill_between(x_vals[-len(v):], list(ids75),
+                                        list(ids25), facecolor='b', alpha=0.2)
+                else:
+                    _ = ax0.plot(x_vals[-len(v):], v, color='b')
+
+                if k == 'mean_nlogdetcov':
+                    _ = ax0.set_ylim(-1500, 3000)
+                _ = ax0.grid()
+                _ = ax0.set_ylabel(k)
+                _ = ax0.set_xlabel('Learning Steps')
+
+                if x_vals[-len(v)] < nb_warmup_steps:
+                    _ = ax0.axvline(x=nb_warmup_steps, color='k')
+                _ = f0.savefig(os.path.join(self.save_dir, "%s.png"%k))
+
+def evaluation(act, env_id, env_type, nb_test_steps=None, nb_itrs=5,
+                render=False, **kwargs):
     """Evaluate the current model with a semi-greedy action policy.
     Parameters
     -------
@@ -152,37 +166,26 @@ def evaluation(act, env_id, env_type, nb_test_steps=None, nb_itrs=5, render=Fals
     total_nlogdetcov : np.array with shape=(nb_itrs,)
         cumulative negative mean of logdetcov only for a target tracking env.
     """
-
     total_rewards = []
-    if env_type == 'target_tracking':
-        total_nlogdetcov = []
     env = envs.make(env_id, env_type, render=render, is_training=False, **kwargs)
     for _ in range(nb_itrs):
         obs = env.reset()
         if nb_test_steps is None: # Evaluate until an episode ends.
             done = False
-            episode_reward = 0
-            if env_type == 'target_tracking':
-                episode_nlogdetcov = 0 # For target tracking env only.
-            t = 0
+            episode_reward, t = 0, 0
             while not done:
                 if render:
                     env.render()
                 action = act(np.array(obs)[None])[0]
                 obs, rew, done, info = env.step(action)
                 episode_reward += rew
-                if env_type == 'target_tracking':
-                    episode_nlogdetcov += info['mean_nlogdetcov']
                 t += 1
                 if done and (env_type=='atari') and (info['ale.lives'] != 0):
                     done = False
             total_rewards.append(episode_reward)
-            if env_type == 'target_tracking':
-                total_nlogdetcov.append(episode_nlogdetcov)
         else:
-            t = 0
+            t, episode_reward = 0, 0
             episodes = []
-            episode_reward = 0
             while(t < nb_test_steps):
                 if render:
                     env.render()
@@ -201,7 +204,130 @@ def evaluation(act, env_id, env_type, nb_test_steps=None, nb_itrs=5, render=Fals
 
     if render:
         env.close()
-    if env_type == 'target_tracking':
-        return np.array(total_rewards, dtype=np.float32), np.array(total_nlogdetcov, dtype=np.float32)
+    return np.array(total_rewards, dtype=np.float32), None
+
+def evaluation_ttenv(act, env_id, eval_type='random', nb_itrs=5, render=False, **kwargs):
+    """
+    Evaluation for the ttenv environments in a given set of different sampling
+    zones. The set of different sampling zones is defined in TTENV_EVAL_SET.
+    """
+    if eval_type == 'random':
+        params_set = [{}]
+    elif eval_type == 'random_zone':
+        params_set = TTENV_EVAL_SET
+    elif eval_type == 'fixed':
+        params_set = [{'init_pose_list':kwargs['init_pose_list']}]
     else:
-        return np.array(total_rewards, dtype=np.float32), None
+        raise ValueError("Wrong evaluation type for ttenv.")
+
+    env = envs.make(env_id, 'target_tracking', render=render, is_training=False, **kwargs)
+    total_rewards, total_nlogdetcov = [], []
+    for params in params_set:
+        total_rewards_k, total_nlogdetcov_k = [], []
+        for _ in range(nb_itrs):
+            obs = env.reset(**params)
+            done = False
+            episode_reward, episode_nlogdetcov, t = 0, 0, 0
+            while not done:
+                if render:
+                    env.render()
+                action = act(np.array(obs)[None])[0]
+                obs, rew, done, info = env.step(action)
+                episode_reward += rew
+                episode_nlogdetcov += info['mean_nlogdetcov']
+                t += 1
+            total_rewards_k.append(episode_reward)
+            total_nlogdetcov_k.append(episode_nlogdetcov)
+        total_rewards.append(total_rewards_k)
+        total_nlogdetcov.append(total_nlogdetcov_k)
+    if render:
+        env.close()
+    if len(total_rewards) == 1:
+        total_rewards = total_rewards[0]
+        total_nlogdetcov = total_nlogdetcov[0]
+    return np.array(total_rewards, dtype=np.float32), np.array(total_nlogdetcov, dtype=np.float32)
+
+def batch_plot(list_records, save_dir, nb_train_steps, nb_epoch_steps, is_target_tracking=False):
+    import matplotlib
+    matplotlib.use('Agg')
+    from matplotlib import pyplot as plt
+    from util import mstd
+
+    results = {'online_reward':[], 'test_reward':[]}
+    if is_target_tracking:
+        results['mean_nlogdetcov'] = []
+    for r in list_records:
+        for (k,v) in results.items():
+            r[k] = np.array(r[k])
+            v.append(r[k].T)
+    x_vals = range(0, nb_train_steps+1, nb_epoch_steps)
+    for (k,v) in results.items():
+        v = np.array(v)
+        if len(v.shape) == 4:
+            for i in range(v.shape[2]):
+                v_i = np.concatenate(v[:,:,i,:], axis=0)
+                f0, ax0 = plt.subplots()
+                m, ids25, ids75 = mstd(v_i)
+                _ = ax0.plot(x_vals[-v_i.shape[1]:], m, color='k')
+                _ = ax0.fill_between(x_vals[-v_i.shape[1]:], list(ids75), list(ids25),
+                                facecolor='k', alpha=0.2)
+                _ = ax0.plot(x_vals[-v_i.shape[1]:], np.max(v_i, axis=0), color='b')
+                _ = ax0.plot(x_vals[-v_i.shape[1]:], np.min(v_i, axis=0), color='r')
+                _ = ax0.grid()
+                if k == 'mean_nlogdetcov':
+                    ax0.set_ylim(-1500, 3000)
+                _ = f0.savefig(os.path.join(save_dir, "%s_eval_%d.png"%(k,i)))
+                plt.close()
+        else:
+            if len(v.shape) == 3:
+                v = np.concatenate(v, axis=0)
+            f0, ax0 = plt.subplots()
+            m, ids25, ids75 = mstd(v)
+            _ = ax0.plot(x_vals[-v.shape[1]:], m, color='k')
+            _ = ax0.fill_between(x_vals[-v.shape[1]:], list(ids75), list(ids25),
+                            facecolor='k', alpha=0.2)
+            _ = ax0.plot(x_vals[-v.shape[1]:], np.max(v, axis=0), color='b')
+            _ = ax0.plot(x_vals[-v.shape[1]:], np.min(v, axis=0), color='r')
+            _ = ax0.grid()
+            if k == 'mean_nlogdetcov':
+                ax0.set_ylim(-1500, 3000)
+            _ = f0.savefig(os.path.join(save_dir, k+".png"))
+            plt.close()
+
+TTENV_EVAL_SET = [{
+        'lin_dist_range':(5.0, 10.0),
+        'ang_dist_range_target':(-0.5*np.pi, 0.5*np.pi),
+        'ang_dist_range_belief':(-0.25*np.pi, 0.25*np.pi),
+        'blocked':False
+        },
+        {
+        'lin_dist_range':(10.0, 15.0),
+        'ang_dist_range_target':(-0.5*np.pi, 0.5*np.pi),
+        'ang_dist_range_belief':(-0.25*np.pi, 0.25*np.pi),
+        'blocked':True
+        },
+        { # target and beleif in the opposite direction
+        'lin_dist_range':(5.0, 10.0),
+        'ang_dist_range_target':(0.5*np.pi, -0.5*np.pi),
+        'ang_dist_range_belief':(-0.25*np.pi, 0.25*np.pi),
+        'blocked':False
+        },
+        { # target and beleif in the opposite direction
+        'lin_dist_range':(10.0, 15.0),
+        'ang_dist_range_target':(0.5*np.pi, -0.5*np.pi),
+        'ang_dist_range_belief':(-0.25*np.pi, 0.25*np.pi),
+        'blocked':True
+        },
+        { # target in the opposite direction but belief in the same direction
+        'lin_dist_range':(5.0, 10.0),
+        'ang_dist_range_target':(0.5*np.pi, -0.5*np.pi),
+        'ang_dist_range_belief':(0.75*np.pi, -0.75*np.pi),
+        'blocked':False
+        },
+        { #target in the opposite direction but belief in the same direction
+        'lin_dist_range':(10.0, 15.0),
+        'ang_dist_range_target':(0.5*np.pi, -0.5*np.pi),
+        'ang_dist_range_belief':(0.75*np.pi, -0.75*np.pi),
+        'blocked':True
+        },
+]

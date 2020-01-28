@@ -59,7 +59,7 @@ args = parser.parse_args()
 
 def train(seed, save_dir):
     set_global_seeds(seed)
-    save_dir_0 = os.path.join(save_dir, 'batch_%d'%seed)
+    save_dir_0 = os.path.join(save_dir, 'seed_%d'%seed)
     os.makedirs(save_dir_0)
 
     env = envs.make(args.env, 'atari', record = bool(args.record), directory=save_dir_0)
@@ -68,52 +68,52 @@ def train(seed, save_dir):
     reload_path = args.reload_path if args.reload_path else None
 
     with tf.device(args.device):
-        model = models.cnn_to_mlp(
-            convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)],
-            hiddens=[args.num_units]*args.num_layers,
-            dueling=bool(args.dueling),
-            init_mean = args.init_mean,
-            init_sd = args.init_sd,
-        )
+        with tf.compat.v1.variable_scope('seed_%d'%seed):
+            model = models.cnn_to_mlp(
+                convs=[(32, 8, 4), (64, 4, 2), (64, 3, 1)],
+                hiddens=[args.num_units]*args.num_layers,
+                dueling=bool(args.dueling),
+                init_mean = args.init_mean,
+                init_sd = args.init_sd,
+            )
 
-        act = deepadfq.learn(
-            env,
-            q_func=model,
-            lr=args.learning_rate,
-            lr_decay_factor=args.lr_decay_factor,
-            lr_growth_factor=args.lr_growth_factor,
-            max_timesteps=args.nb_train_steps,
-            buffer_size=args.buffer_size,
-            batch_size=args.batch_size,
-            exploration_fraction=args.eps_fraction,
-            exploration_final_eps=args.eps_min,
-            train_freq=4,
-            print_freq=args.nb_epoch_steps,
-            checkpoint_freq=int(args.nb_train_steps/5),
-            checkpoint_path=reload_path,
-            learning_starts=args.nb_warmup_steps,
-            target_network_update_freq=args.target_update_freq,
-            gamma=args.gamma,
-            prioritized_replay=bool(args.prioritized),
-            prioritized_replay_alpha=args.prioritized_replay_alpha,
-            scope=args.scope,
-            alg=args.alg,
-            sdMin=np.sqrt(args.varth),
-            noise=args.noise,
-            act_policy=args.act_policy,
-            epoch_steps=args.nb_epoch_steps,
-            eval_logger=Logger(args.env, 'atari',
-                    variables=['q_log_sd','q_log_sd_err'],
-                    nb_test_steps=nb_test_steps, save_dir=save_dir_0,
-                    render=bool(args.render)),
-            save_dir=save_dir_0,
-            test_eps=args.test_eps,
-            init_t=args.init_t,
-            gpu_memory=args.gpu_memory,
-            render=bool(args.render)
-        )
-        print("Saving model to model.pkl")
-        act.save(os.path.join(save_dir_0,"model.pkl"))
+            act = deepadfq.learn(
+                env,
+                q_func=model,
+                lr=args.learning_rate,
+                lr_decay_factor=args.lr_decay_factor,
+                lr_growth_factor=args.lr_growth_factor,
+                max_timesteps=args.nb_train_steps,
+                buffer_size=args.buffer_size,
+                batch_size=args.batch_size,
+                exploration_fraction=args.eps_fraction,
+                exploration_final_eps=args.eps_min,
+                train_freq=4,
+                print_freq=args.nb_epoch_steps,
+                checkpoint_freq=int(args.nb_train_steps/5),
+                checkpoint_path=reload_path,
+                learning_starts=args.nb_warmup_steps,
+                target_network_update_freq=args.target_update_freq,
+                gamma=args.gamma,
+                prioritized_replay=bool(args.prioritized),
+                prioritized_replay_alpha=args.prioritized_replay_alpha,
+                scope=args.scope,
+                alg=args.alg,
+                sdMin=np.sqrt(args.varth),
+                noise=args.noise,
+                act_policy=args.act_policy,
+                epoch_steps=args.nb_epoch_steps,
+                eval_logger=Logger(args.env, 'atari',
+                        nb_test_steps=nb_test_steps, save_dir=save_dir_0,
+                        render=bool(args.render)),
+                save_dir=save_dir_0,
+                test_eps=args.test_eps,
+                init_t=args.init_t,
+                gpu_memory=args.gpu_memory,
+                render=bool(args.render)
+            )
+            print("Saving model to model.pkl")
+            act.save(os.path.join(save_dir_0,"model.pkl"))
     env.close()
     if args.record == 1:
         env.moviewriter.finish()
@@ -122,7 +122,7 @@ def test():
     env = envs.make(args.env, 'atari', render = bool(args.render),
                     record = bool(args.record), directory=args.log_dir)
     learning_prop = json.load(open(os.path.join(args.log_dir, '../learning_prop.json'),'r'))
-    act_params = {'scope': learning_prop['scope'], 'eps': args.test_eps}
+    act_params = {'scope': "seed_%d"%learning_prop['seed']+"/"+learning_prop['scope'], 'eps': args.test_eps}
     act = deepadfq.load(os.path.join(args.log_dir, args.log_fname), act_params)
     episode_rew = 0
     t = 0

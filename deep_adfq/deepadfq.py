@@ -233,7 +233,7 @@ def learn(env,
     act, act_test, q_target_vals, train, update_target, lr_decay_op, lr_growth_op = build_graph.build_train(
         make_obs_ph=make_obs_ph,
         q_func=q_func,
-        num_actions=env.action_space.n,
+        num_actions=num_actions,
         optimizer_f=tf.compat.v1.train.AdamOptimizer,
         grad_norm_clipping=10,
         sdMin=sdMin,
@@ -271,6 +271,7 @@ def learn(env,
     exploration = LinearSchedule(schedule_timesteps=int(exploration_fraction * max_timesteps),
                                  initial_p=1.0,
                                  final_p=exploration_final_eps)
+    file_writer = tf.compat.v1.summary.FileWriter(save_dir, sess.graph)
     U.initialize()
     update_target()
 
@@ -292,8 +293,7 @@ def learn(env,
             learning_starts += init_t
 
         checkpt_loss = []
-        curr_lr = lr
-        eval_logger.log_epoch(act_test, curr_lr)
+        eval_logger.log_epoch(act_test)
 
         for t in range(init_t,max_timesteps):
             if callback is not None and callback(locals(), globals()):
@@ -346,11 +346,10 @@ def learn(env,
 
                 target_mean = np.reshape(target_mean, (-1))
                 target_sd = np.reshape(np.sqrt(target_var), (-1))
-                loss, m_err, s_err, curr_lr = train(obses_t, actions, target_mean, target_sd, weights)
+                loss, m_err, s_err, summary = train(obses_t, actions, target_mean, target_sd, weights)
 
-                eval_logger.log_step(loss, np.mean(mean_tp1),
-                       np.mean(np.abs(m_err)), q_log_sd=np.mean(np.log(sd_tp1)),
-                       q_log_sd_err=np.mean(np.abs(s_err)))
+                file_writer.add_summary(summary, t)
+                eval_logger.log_step(loss=loss)
 
                 if prioritized_replay:
                     new_priorities = np.abs(m_err) + np.abs(s_err) + prioritized_replay_eps
@@ -362,8 +361,11 @@ def learn(env,
                 # Update target network periodically.
                 update_target()
 
-            if (t > learning_starts and (t+1) % epoch_steps == 0 and
-                                    len(eval_logger.ep_history['loss']) > 0):
+            if (t+1) % epoch_steps == 0:
+                eval_logger.log_epoch(act_test)
+
+            if (checkpoint_freq is not None and t > learning_starts and
+                    (t+1) % checkpoint_freq == 0 and eval_logger.get_num_episode() > 10):
                 mean_loss = np.float16(np.mean(eval_logger.ep_history['loss']))
                 if len(checkpt_loss) > 2 and mean_loss > np.float16(max(checkpt_loss[-3:])) and lr_decay_factor < 1.0:
                     sess.run(lr_decay_op)
@@ -372,20 +374,13 @@ def learn(env,
                     sess.run(lr_growth_op)
                     print("Learning rate grown due to a decrease in loss: %.4f -> %.4f"%( np.float16(min(checkpt_loss[-3:])),mean_loss))
                 checkpt_loss.append(mean_loss)
-
-            if (t+1) % epoch_steps == 0:
-                eval_logger.log_epoch(act_test, curr_lr)
-
-            if (checkpoint_freq is not None and t > learning_starts and
-                    eval_logger.get_num_episode() > 100 and (t+1) % checkpoint_freq == 0):
-                print("Saving model to model_%d.pkl"%(t+1))
-                act.save(os.path.join(save_dir,"model_"+str(t+1)+".pkl"))
+                # print("Saving model to model_%d.pkl"%(t+1))
+                # act.save(os.path.join(save_dir,"model_"+str(t+1)+".pkl"))
                 mean_100ep_reward = eval_logger.get_100ep_reward()
                 if saved_mean_reward is None or mean_100ep_reward > saved_mean_reward:
                     if print_freq is not None:
                         logger.log("Saving model due to mean reward increase: {} -> {}".format(
                                    saved_mean_reward, mean_100ep_reward))
-
                     save_state(model_file)
                     model_saved = True
                     saved_mean_reward = mean_100ep_reward

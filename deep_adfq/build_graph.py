@@ -199,7 +199,7 @@ def build_act_bayesian(make_obs_ph, q_func, num_actions, scope="deepadfq", reuse
         observations_ph = make_obs_ph("observation")
         q_values = q_func(observations_ph.get(), num_actions*2, scope="q_func") # mean and -log(sd)
         q_means = q_values[:,:num_actions]
-        q_sds = tf.exp(-q_values[:,num_actions:])
+        q_sds = tf.math.exp(-q_values[:,num_actions:])
         samples = tf.random.normal((),mean=q_means,stddev=q_sds)
         output_actions = tf.argmax(input=samples, axis=1)
 
@@ -308,34 +308,42 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer_f,
 
         # q network evaluation
         q_t = q_func(obs_t_input.get(), num_actions*2, scope="q_func", reuse=True)  # reuse parameters from act
-        q_func_vars = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.GLOBAL_VARIABLES, scope=tf.compat.v1.get_variable_scope().name + "/q_func")
+        q_func_vars = tf.compat.v1.get_collection(
+                    tf.compat.v1.GraphKeys.GLOBAL_VARIABLES,
+                    scope=tf.compat.v1.get_variable_scope().name + "/q_func")
 
         # target q network evalution
         q_tp1 = q_func(obs_tp1_input.get(), num_actions*2, scope="target_q_func")
 
-        target_q_func_vars = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.GLOBAL_VARIABLES, scope=tf.compat.v1.get_variable_scope().name + "/target_q_func")
+        target_q_func_vars = tf.compat.v1.get_collection(
+                tf.compat.v1.GraphKeys.GLOBAL_VARIABLES,
+                scope=tf.compat.v1.get_variable_scope().name + "/target_q_func")
 
         mean_values = q_t[:, :num_actions]
         rho_values = q_t[:, num_actions:]
 
         mean_selected = tf.reduce_sum(input_tensor=mean_values * tf.one_hot(act_t_ph, num_actions, dtype=tf.float32), axis=1)
-        rho_selected = tf.compat.v1.clip_by_value(tf.reduce_sum(
+        sd_selected = tf.math.exp(-tf.compat.v1.clip_by_value(tf.reduce_sum(
                         input_tensor=rho_values * \
                         tf.one_hot(act_t_ph, num_actions, dtype=tf.float32),
-                        axis=1), -np.log(sdMax), -np.log(sdMin))
-
-        sd_selected = tf.exp(-rho_selected)
+                        axis=1), -np.log(sdMax), -np.log(sdMin)))
 
         mean_error = mean_selected - tf.stop_gradient(target_means)
-        sd_error = tf.math.log(sd_selected) - tf.math.log(tf.stop_gradient(target_sd))
+        sd_error = - tf.math.log(sd_selected) + tf.math.log(tf.stop_gradient(target_sd))
         huber_loss = U.huber_loss(mean_error) + U.huber_loss(sd_error)
-        weighted_loss = tf.reduce_mean(input_tensor=huber_loss * importance_weights_ph)
-
         #kl_loss = tf.contrib.distributions.kl_divergence(
         #    tf.distributions.Normal(loc=target_means, scale=target_sd),
         #    tf.distributions.Normal(loc=mean_selected, scale=sd_selected),
         #    name='kl_loss')
-        #weighted_loss = tf.reduce_mean(kl_loss * importance_weights_ph)
+        weighted_loss = tf.reduce_mean(input_tensor=huber_loss * importance_weights_ph)
+
+        # Log for tensorboard
+        tf.summary.scalar('mean_values', tf.math.reduce_mean(mean_values))
+        tf.summary.scalar('sd_values', tf.math.reduce_mean(tf.math.exp(-rho_values)))
+        tf.summary.scalar('mean_MSE', tf.math.reduce_mean(tf.math.square(mean_error)))
+        tf.summary.scalar('sd_MSE', tf.math.reduce_mean(tf.math.square(sd_error)))
+        tf.summary.scalar('weighted_loss', weighted_loss)
+
         if grad_norm_clipping is not None:
             gradients = optimizer.compute_gradients(weighted_loss, var_list=q_func_vars)
             for i, (grad, var) in enumerate(gradients):
@@ -345,13 +353,12 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer_f,
         else:
             optimize_expr = optimizer.minimize(weighted_loss, var_list=q_func_vars)
 
-
         update_target_expr = []
         for var, var_target in zip(sorted(q_func_vars, key=lambda v: v.name),
                                    sorted(target_q_func_vars, key=lambda v: v.name)):
             update_target_expr.append(var_target.assign(tau*var + (1-tau)*var_target))
         update_target_expr = tf.group(*update_target_expr)
-
+        merged_summary = tf.compat.v1.summary.merge_all(scope=tf.compat.v1.get_variable_scope().name)
         # Create callable functions
         train = U.function(
             inputs=[
@@ -361,7 +368,7 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer_f,
                 target_sd,
                 importance_weights_ph,
             ],
-            outputs=[tf.reduce_mean(input_tensor=huber_loss), mean_error, sd_error, lr],
+            outputs=[tf.reduce_mean(input_tensor=huber_loss), mean_error, sd_error, merged_summary],
             updates=[optimize_expr]
         )
         update_target = U.function([], [], updates=[update_target_expr])
@@ -371,7 +378,6 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer_f,
             outputs = [q_tp1])
 
         return act_f, act_test, q_target_vals, train, update_target, lr_decay_op, lr_growth_op
-
 
 def tie_breaking( tf_vec, axis=0):
     samples = tf.random.uniform(tf.shape(input=tf_vec), dtype=tf.float32)
