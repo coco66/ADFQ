@@ -15,7 +15,7 @@ import envs
 from deep_adfq.logger import Logger
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument('--env', help='environment ID', default='TargetTracking-v1')
+parser.add_argument('--env', help='environment ID', default='maTracking-v1')
 parser.add_argument('--seed', help='RNG seed', type=int, default=0)
 parser.add_argument('--prioritized', type=int, default=0)
 parser.add_argument('--prioritized-replay-alpha', type=float, default=0.6)
@@ -35,7 +35,7 @@ parser.add_argument('--learning_rate_growth_factor', type=float, default=1.0)
 parser.add_argument('--gamma', type=float, default=.99)
 parser.add_argument('--num_layers', type=int, default=3)
 parser.add_argument('--num_units', type=int, default=128)
-parser.add_argument('--log_dir', type=str, default='.')
+parser.add_argument('--log_dir', type=str, default='./../zlogs')
 parser.add_argument('--log_fname', type=str, default='model.pkl')
 parser.add_argument('--eps_fraction', type=float, default=0.1)
 parser.add_argument('--eps_min', type=float, default=.02)
@@ -61,7 +61,7 @@ def train(seed, save_dir):
     os.makedirs(save_dir_0)
 
     env = envs.make(args.env,
-                    'target_tracking',
+                    'ma_target_tracking',
                     render=bool(args.render),
                     record=bool(args.record),
                     directory=save_dir_0,
@@ -116,7 +116,7 @@ def train(seed, save_dir):
 def test():
     learning_prop = json.load(open(os.path.join(args.log_dir, 'learning_prop.json'),'r'))
     env = envs.make(args.env,
-                    'target_tracking',
+                    'ma_target_tracking',
                     render=bool(args.render),
                     record=bool(args.record),
                     directory=args.log_dir,
