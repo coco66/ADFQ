@@ -33,8 +33,7 @@ parser.add_argument('--learning_rate', type=float, default=0.001)
 parser.add_argument('--learning_rate_decay_factor', type=float, default=1.0)
 parser.add_argument('--learning_rate_growth_factor', type=float, default=1.0)
 parser.add_argument('--gamma', type=float, default=.99)
-parser.add_argument('--num_layers', type=int, default=3)
-parser.add_argument('--num_units', type=int, default=128)
+parser.add_argument('--hiddens', type=str, default='64:128:64')
 parser.add_argument('--log_dir', type=str, default='.')
 parser.add_argument('--log_fname', type=str, default='model.pkl')
 parser.add_argument('--eps_fraction', type=float, default=0.1)
@@ -50,14 +49,14 @@ parser.add_argument('--ros', type=int, default=0)
 parser.add_argument('--ros_log', type=int, default=0)
 parser.add_argument('--map', type=str, default="emptySmall")
 parser.add_argument('--nb_targets', type=int, default=1)
-parser.add_argument('--im_size', type=int, default=50)
-parser.add_argument('--pooling', type=int, default=0)
+parser.add_argument('--eval_type', choices=['random', 'random_zone', 'fixed'], default='random')
+parser.add_argument('--init_file_path', type=str, default=".")
 
 args = parser.parse_args()
 
 def train(seed, save_dir):
     set_global_seeds(seed)
-    save_dir_0 = os.path.join(save_dir, 'batch_%d'%seed)
+    save_dir_0 = os.path.join(save_dir, 'seed_%d'%seed)
     os.makedirs(save_dir_0)
 
     env = envs.make(args.env,
@@ -72,44 +71,50 @@ def train(seed, save_dir):
                     )
 
     with tf.device(args.device):
-        model = deepq.models.mlp([args.num_units]*args.num_layers)
-        act = deepq.learn(
-            env,
-            q_func=model,
-            lr=args.learning_rate,
-            lr_decay_factor=args.learning_rate_decay_factor,
-            lr_growth_factor=args.learning_rate_growth_factor,
-            max_timesteps=args.nb_train_steps,
-            buffer_size=args.buffer_size,
-            batch_size=args.batch_size,
-            exploration_fraction=args.eps_fraction,
-            exploration_final_eps=args.eps_min,
-            target_network_update_freq=args.target_update_freq,
-            print_freq=10,
-            checkpoint_freq=int(args.nb_train_steps/10),
-            learning_starts=args.nb_warmup_steps,
-            gamma = args.gamma,
-            prioritized_replay=bool(args.prioritized),
-            prioritized_replay_alpha=args.prioritized_replay_alpha,
-            callback=None,#callback,
-            double_q = args.double_q,
-            scope=args.scope,
-            epoch_steps = args.nb_epoch_steps,
-            eval_logger=Logger(args.env, 'target_tracking',
-                    save_dir=save_dir_0,
-                    render=bool(args.render),
-                    figID=1,
-                    ros=bool(args.ros),
-                    map_name=args.map,
-                    num_targets=args.nb_targets,
-                    im_size=args.im_size),
-            save_dir=save_dir_0,
-            test_eps = args.test_eps,
-            gpu_memory=args.gpu_memory,
-            render = (bool(args.render) or bool(args.ros)),
-        )
-        print("Saving model to model.pkl")
-        act.save(os.path.join(save_dir_0,"model.pkl"))
+        with tf.compat.v1.variable_scope('seed_%d'%seed):
+            hiddens = args.hiddens.split(':')
+            hiddens = [int(h) for h in hiddens]
+            model = deepq.models.mlp(hiddens)
+            act = deepq.learn(
+                env,
+                q_func=model,
+                lr=args.learning_rate,
+                lr_decay_factor=args.learning_rate_decay_factor,
+                lr_growth_factor=args.learning_rate_growth_factor,
+                max_timesteps=args.nb_train_steps,
+                buffer_size=args.buffer_size,
+                batch_size=args.batch_size,
+                exploration_fraction=args.eps_fraction,
+                exploration_final_eps=args.eps_min,
+                target_network_update_freq=args.target_update_freq,
+                print_freq=10,
+                checkpoint_freq=int(args.nb_train_steps/10),
+                learning_starts=args.nb_warmup_steps,
+                gamma = args.gamma,
+                prioritized_replay=bool(args.prioritized),
+                prioritized_replay_alpha=args.prioritized_replay_alpha,
+                callback=None,#callback,
+                double_q = args.double_q,
+                scope=args.scope,
+                epoch_steps = args.nb_epoch_steps,
+                eval_logger=Logger(args.env,
+                                env_type='target_tracking',
+                                save_dir=save_dir_0,
+                                render=bool(args.render),
+                                figID=1,
+                                ros=bool(args.ros),
+                                map_name=args.map,
+                                num_targets=args.nb_targets,
+                                eval_type=args.eval_type,
+                                init_file_path=args.init_file_path,
+                                ),
+                save_dir=save_dir_0,
+                test_eps = args.test_eps,
+                gpu_memory=args.gpu_memory,
+                render = (bool(args.render) or bool(args.ros)),
+            )
+            print("Saving model to model.pkl")
+            act.save(os.path.join(save_dir_0,"model.pkl"))
     if args.record == 1:
         env.moviewriter.finish()
 
@@ -129,8 +134,7 @@ def test():
     timelimit_env = env
     while( not hasattr(timelimit_env, '_elapsed_steps')):
         timelimit_env = timelimit_env.env
-
-    act_params = {'scope': learning_prop['scope'], 'eps': args.test_eps}
+    act_params = {'scope': "seed_%d"%learning_prop['seed']+"/"+learning_prop['scope'], 'eps': args.test_eps}
     act = simple.load(os.path.join(args.log_dir, args.log_fname), act_params)
 
     if args.ros_log:
@@ -141,15 +145,20 @@ def test():
     init_pos = []
     ep_nlogdetcov = ['Episode nLogDetCov']
     time_elapsed = ['Elapsed Time (sec)']
+    given_init_pose, test_init_pose = [], []
+    # Use a fixed set of initial positions if given.
+    if args.init_file_path != '.':
+        import pickle
+        given_init_pose = pickle.load(open(args.init_file_path, "rb"))
+
     while(ep < args.nb_test_steps): # test episode
         ep += 1
-        obs, done = env.reset(), False
-        episode_rew = 0
-        init_pos.append({'agent':timelimit_env.env.agent.state,
+        episode_rew, nlogdetcov = 0, 0
+        obs, done = env.reset(init_pose_list=given_init_pose), False
+        test_init_pose.append({'agent':timelimit_env.env.agent.state,
                             'targets':[timelimit_env.env.targets[i].state for i in range(args.nb_targets)],
                             'belief_targets':[timelimit_env.env.belief_targets[i].state for i in range(args.nb_targets)]})
         s_time = time.time()
-        nlogdetcov = 0
         while not done:
             if args.render:
                 env.render()
@@ -157,18 +166,22 @@ def test():
                 ros_log.log(env)
             obs, rew, done, _ = env.step(act(obs[None])[0])
             episode_rew += rew
-            nlogdetcov += info['test_reward']
+            nlogdetcov += info['mean_nlogdetcov']
 
         time_elapsed.append(time.time() - s_time)
         ep_nlogdetcov.append(nlogdetcov)
-        print("Episode reward : %.2f, Episode nLogDetCov : %.2f"%(episode_rew, nlogdetcov))
+        print("Ep.%d - Episode reward : %.2f, Episode nLogDetCov : %.2f"%(ep, episode_rew, nlogdetcov))
 
     if args.record :
         env.moviewriter.finish()
     if args.ros_log :
         ros_log.save(args.log_dir)
-    import pickle
-    pickle.dump(init_pos, open(os.path.join(args.log_dir,'test_init_log.pkl'), 'wb'))
+
+    import pickle, tabulate
+    pickle.dump(test_init_pose, open(os.path.join(args.log_dir,'test_init_pose.pkl'), 'wb'))
+    f_result = open(os.path.join(args.log_dir, 'test_result.txt'), 'w')
+    f_result.write(tabulate.tabulate([ep_nlogdetcov, time_elapsed], tablefmt='presto'))
+    f_result.close()
 
 if __name__ == '__main__':
     if args.mode == 'train':

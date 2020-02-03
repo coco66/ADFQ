@@ -458,6 +458,11 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer_f,
         errors = U.huber_loss(td_error)
         weighted_error = tf.reduce_mean(input_tensor=importance_weights_ph * errors)
 
+        # Log for tensorboard
+        tf.summary.scalar('q_values', tf.math.reduce_mean(q_t))
+        tf.summary.scalar('td_MSE', tf.math.reduce_mean(tf.math.square(td_error)))
+        tf.summary.scalar('weighted_loss', weighted_error)
+
         # compute optimization op (potentially with gradient clipping)
         if grad_norm_clipping is not None:
             gradients = optimizer.compute_gradients(weighted_error, var_list=q_func_vars)
@@ -475,6 +480,7 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer_f,
             update_target_expr.append(var_target.assign(tau*var + (1-tau)*var_target))
         update_target_expr = tf.group(*update_target_expr)
 
+        merged_summary = tf.compat.v1.summary.merge_all(scope=tf.compat.v1.get_variable_scope().name)
         # Create callable functions
         train = U.function(
             inputs=[
@@ -485,7 +491,7 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer_f,
                 done_mask_ph,
                 importance_weights_ph
             ],
-            outputs=[td_error, lr, tf.reduce_mean(input_tensor=errors)],
+            outputs=[td_error, tf.reduce_mean(input_tensor=errors), merged_summary],
             updates=[optimize_expr]
         )
         update_target = U.function([], [], updates=[update_target_expr])
