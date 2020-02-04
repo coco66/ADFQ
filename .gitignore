@@ -4,3 +4,5 @@ deep_adfq/results
 envs/optQ
 *.png
 *.pyc
+logs/
+__pycache__/
