@@ -38,6 +38,10 @@ def make(env_name, type, render=False, record=False, directory='', **kwargs):
         import ttenv
         env = ttenv.make(env_name, render=render, record=record,
                                                 directory=directory, **kwargs)
+    elif type == 'ma_target_tracking':
+        import maTTenv
+        env = maTTenv.make(env_name, render=render, record=record,
+                                                directory=directory, **kwargs)
     else:
         raise ValueError('Designate the right type of the environment.')
 
