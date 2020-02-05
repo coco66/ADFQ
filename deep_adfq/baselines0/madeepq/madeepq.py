@@ -302,22 +302,25 @@ def learn(env,
                 kwargs['update_param_noise_threshold'] = update_param_noise_threshold
                 kwargs['update_param_noise_scale'] = True
 
-            action = act(np.array(obs)[None], update_eps=update_eps, **kwargs)[0]
-            env_action = action
+            action_dict = {}
+            for agent_id, a_obs in obs.items():
+                action_dict[agent_id] = act(np.array(a_obs)[None], update_eps=update_eps, **kwargs)[0]
             reset = False
-            new_obs, rew, done, info = env.step(env_action)
+            new_obs, rew, done, info = env.step(action_dict)
             # Store transition in the replay buffer.
-            if timelimit_env._elapsed_steps < timelimit_env._max_episode_steps:
-                replay_buffer.add(obs, action, rew, new_obs, float(done))
-            else:
-                replay_buffer.add(obs, action, rew, new_obs, float(not done))
+            for agent_id, a_obs in obs.items():
+                if timelimit_env._elapsed_steps < timelimit_env._max_episode_steps:
+                    replay_buffer.add(a_obs, action_dict[agent_id], rew['__all__'], new_obs[agent_id], float(done['__all__']))
+                else:
+                    replay_buffer.add(a_obs, action_dict[agent_id], rew['__all__'], new_obs[agent_id], float(not done))
 
             obs = new_obs
-            eval_logger.log_reward(rew)
-            if done:
+            eval_logger.log_reward(rew['__all__'])
+
+            if type(done) is not dict:
                 obs = env.reset()
                 reset = True
-                eval_logger.log_ep(info)
+                eval_logger.log_ep(info['mean_nlogdetcov'])
 
             if t > learning_starts and (t+1) % train_freq == 0:
                 # Minimize the error in Bellman's equation on a batch sampled from replay buffer.

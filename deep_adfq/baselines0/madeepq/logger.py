@@ -161,16 +161,15 @@ def evaluation_maTTenv(act, env_id, eval_type='random', nb_itrs=5, render=False,
         total_rewards_k, total_nlogdetcov_k = [], []
         for _ in range(nb_itrs):
             obs = env.reset(**params)
-            done = False
+            done = {}
             episode_reward, episode_nlogdetcov, t = 0, 0, 0
-            while not done:
+            while(type(done) is dict):
                 if render:
                     env.render()
                 for agent_id, a_obs in obs.items():
                     action_dict[agent_id] = act(np.array(a_obs)[None])[0]
-                import pdb;pdb.set_trace()
                 obs, rew, done, info = env.step(action_dict)
-                episode_reward += rew
+                episode_reward += rew['__all__']
                 episode_nlogdetcov += info['mean_nlogdetcov']
                 t += 1
             total_rewards_k.append(episode_reward)
