@@ -10,13 +10,13 @@ import numpy as np
 
 from baselines0.common import set_global_seeds
 from baselines0 import madeepq
-from baselines0 import deepq
+# from baselines0 import deepq
 
 import envs
-from deep_adfq.logger import Logger
+from baselines0.madeepq.logger import Logger
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument('--env', help='environment ID', default='TargetTracking-v1')
+parser.add_argument('--env', help='environment ID', default='maTracking-v1')
 parser.add_argument('--seed', help='RNG seed', type=int, default=0)
 parser.add_argument('--prioritized', type=int, default=0)
 parser.add_argument('--prioritized-replay-alpha', type=float, default=0.6)
@@ -68,7 +68,7 @@ def train(seed, save_dir):
                     directory=save_dir_0,
                     ros=bool(args.ros),
                     map_name=args.map,
-                    num_agents=args.nb_agents
+                    num_agents=args.nb_agents,
                     num_targets=args.nb_targets,
                     is_training=False,
                     )
@@ -101,7 +101,7 @@ def train(seed, save_dir):
                 scope=args.scope,
                 epoch_steps = args.nb_epoch_steps,
                 eval_logger=Logger(args.env,
-                                env_type='target_tracking',
+                                env_type='ma_target_tracking',
                                 save_dir=save_dir_0,
                                 render=bool(args.render),
                                 figID=1,
@@ -124,14 +124,14 @@ def train(seed, save_dir):
 def test():
     learning_prop = json.load(open(os.path.join(args.log_dir, 'learning_prop.json'),'r'))
     env = envs.make(args.env,
-                    'target_tracking',
+                    'ma_target_tracking',
                     render=bool(args.render),
                     record=bool(args.record),
                     directory=args.log_dir,
                     ros=bool(args.ros),
                     map_name=args.map,
+                    num_agents=learning_prop['nb_agents'],
                     num_targets=learning_prop['nb_targets'],
-                    im_size=learning_prop['im_size'],
                     is_training=False,
                     )
     timelimit_env = env
