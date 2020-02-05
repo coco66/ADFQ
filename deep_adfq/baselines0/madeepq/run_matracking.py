@@ -9,13 +9,14 @@ import datetime, json, os
 import numpy as np
 
 from baselines0.common import set_global_seeds
-from baselines0 import deepq
+from baselines0 import madeepq
+# from baselines0 import deepq
 
 import envs
-from deep_adfq.logger import Logger
+from baselines0.madeepq.logger import Logger
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument('--env', help='environment ID', default='TargetTracking-v1')
+parser.add_argument('--env', help='environment ID', default='maTracking-v1')
 parser.add_argument('--seed', help='RNG seed', type=int, default=0)
 parser.add_argument('--prioritized', type=int, default=0)
 parser.add_argument('--prioritized-replay-alpha', type=float, default=0.6)
@@ -44,10 +45,11 @@ parser.add_argument('--record',type=int, default=0)
 parser.add_argument('--render', type=int, default=0)
 parser.add_argument('--gpu_memory',type=float, default=1.0)
 parser.add_argument('--repeat', type=int, default=1)
-parser.add_argument('--scope',type=str, default='deepq')
+parser.add_argument('--scope',type=str, default='madeepq')
 parser.add_argument('--ros', type=int, default=0)
 parser.add_argument('--ros_log', type=int, default=0)
 parser.add_argument('--map', type=str, default="emptySmall")
+parser.add_argument('--nb_agents', type=int, default=1)
 parser.add_argument('--nb_targets', type=int, default=1)
 parser.add_argument('--eval_type', choices=['random', 'random_zone', 'fixed'], default='random')
 parser.add_argument('--init_file_path', type=str, default=".")
@@ -60,22 +62,23 @@ def train(seed, save_dir):
     os.makedirs(save_dir_0)
 
     env = envs.make(args.env,
-                    'target_tracking',
+                    'ma_target_tracking',
                     render=bool(args.render),
                     record=bool(args.record),
                     directory=save_dir_0,
                     ros=bool(args.ros),
                     map_name=args.map,
+                    num_agents=args.nb_agents,
                     num_targets=args.nb_targets,
-                    im_size=args.im_size,
+                    is_training=False,
                     )
 
     with tf.device(args.device):
         with tf.compat.v1.variable_scope('seed_%d'%seed):
             hiddens = args.hiddens.split(':')
             hiddens = [int(h) for h in hiddens]
-            model = deepq.models.mlp(hiddens)
-            act = deepq.learn(
+            model = madeepq.models.mlp(hiddens)
+            act = madeepq.learn(
                 env,
                 q_func=model,
                 lr=args.learning_rate,
@@ -98,7 +101,7 @@ def train(seed, save_dir):
                 scope=args.scope,
                 epoch_steps = args.nb_epoch_steps,
                 eval_logger=Logger(args.env,
-                                env_type='target_tracking',
+                                env_type='ma_target_tracking',
                                 save_dir=save_dir_0,
                                 render=bool(args.render),
                                 figID=1,
@@ -121,14 +124,14 @@ def train(seed, save_dir):
 def test():
     learning_prop = json.load(open(os.path.join(args.log_dir, 'learning_prop.json'),'r'))
     env = envs.make(args.env,
-                    'target_tracking',
+                    'ma_target_tracking',
                     render=bool(args.render),
                     record=bool(args.record),
                     directory=args.log_dir,
                     ros=bool(args.ros),
                     map_name=args.map,
+                    num_agents=learning_prop['nb_agents'],
                     num_targets=learning_prop['nb_targets'],
-                    im_size=learning_prop['im_size'],
                     is_training=False,
                     )
     timelimit_env = env
