@@ -140,6 +140,73 @@ class Logger():
                     _ = ax0.axvline(x=nb_warmup_steps, color='k')
                 _ = f0.savefig(os.path.join(self.save_dir, "%s.png"%k))
 
+def evaluation(act, env_id, env_type, nb_test_steps=None, nb_itrs=5,
+                render=False, **kwargs):
+    """Evaluate the current model with a semi-greedy action policy.
+    Parameters
+    -------
+    act: ActWrapper
+        Wrapper over act function. Action policy for the evaluation.
+    env_id: str
+        name of an environment. (e.g. CartPole-v0)
+    env_type: str
+        type of an environment. (e.g. 'atari', 'classic_control', 'target_tracking')
+    nb_test_steps: int
+        the number of steps for the evaluation at each iteration. If None, it
+        evaluates until an episode ends.
+    nb_itrs: int
+        the number of test iterations.
+    render: bool
+        display if True.
+
+    Returns
+    -------
+    total_rewards: np.array with shape=(nb_itrs,)
+        cumulative rewards.
+    total_nlogdetcov : np.array with shape=(nb_itrs,)
+        cumulative negative mean of logdetcov only for a target tracking env.
+    """
+    total_rewards = []
+    env = envs.make(env_id, env_type, render=render, is_training=False, **kwargs)
+    for _ in range(nb_itrs):
+        obs = env.reset()
+        if nb_test_steps is None: # Evaluate until an episode ends.
+            done = False
+            episode_reward, t = 0, 0
+            while not done:
+                if render:
+                    env.render()
+                import pdb;pdb.set_trace()
+                action = act(np.array(obs)[None])[0]
+                obs, rew, done, info = env.step(action)
+                episode_reward += rew
+                t += 1
+                if done and (env_type=='atari') and (info['ale.lives'] != 0):
+                    done = False
+            total_rewards.append(episode_reward)
+        else:
+            t, episode_reward = 0, 0
+            episodes = []
+            while(t < nb_test_steps):
+                if render:
+                    env.render()
+                action = act(np.array(obs)[None])[0]
+                obs, rew, done, info = env.step(action)
+                episode_reward += rew
+                t += 1
+                if done:
+                    obs = env.reset()
+                    if ((env_type=='atari') and (info['ale.lives'] == 0)) or not(env_type=='atari'):
+                        episodes.append(episode_reward)
+                        episode_reward = 0
+            if not(episodes):
+                episodes.append(episode_reward)
+            total_rewards.append(np.mean(episodes))
+
+    if render:
+        env.close()
+    return np.array(total_rewards, dtype=np.float32), None
+
 def evaluation_maTTenv(act, env_id, eval_type='random', nb_itrs=5, render=False, **kwargs):
     """
     Evaluation for the ttenv environments in a given set of different sampling
