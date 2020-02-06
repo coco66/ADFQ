@@ -158,17 +158,21 @@ def test():
         ep += 1
         episode_rew, nlogdetcov = 0, 0
         obs, done = env.reset(init_pose_list=given_init_pose), False
-        test_init_pose.append({'agent':timelimit_env.env.agent.state,
+        test_init_pose.append({'agents':[timelimit_env.env.agents[i].state for i in range(args.nb_agents)],
                             'targets':[timelimit_env.env.targets[i].state for i in range(args.nb_targets)],
                             'belief_targets':[timelimit_env.env.belief_targets[i].state for i in range(args.nb_targets)]})
         s_time = time.time()
-        while not done:
+
+        action_dict = {}
+        while type(done) is dict:
             if args.render:
                 env.render()
             if args.ros_log:
                 ros_log.log(env)
-            obs, rew, done, _ = env.step(act(obs[None])[0])
-            episode_rew += rew
+            for agent_id, a_obs in obs.items():
+                action_dict[agent_id] = act(np.array(a_obs)[None])[0]
+            obs, rew, done, _ = env.step(action_dict)
+            episode_rew += rew['__all__']
             nlogdetcov += info['mean_nlogdetcov']
 
         time_elapsed.append(time.time() - s_time)
