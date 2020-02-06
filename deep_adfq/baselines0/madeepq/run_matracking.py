@@ -5,18 +5,17 @@ in the original directory.
 """
 import argparse
 import tensorflow as tf
-import datetime, json, os
+import datetime, json, os, argparse, time, pickle
 import numpy as np
 
 from baselines0.common import set_global_seeds
 from baselines0 import madeepq
-# from baselines0 import deepq
 
 import envs
 from baselines0.madeepq.logger import Logger
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument('--env', help='environment ID', default='maTracking-v1')
+parser.add_argument('--env', help='environment ID', default='maTracking-v2')
 parser.add_argument('--seed', help='RNG seed', type=int, default=0)
 parser.add_argument('--prioritized', type=int, default=0)
 parser.add_argument('--prioritized-replay-alpha', type=float, default=0.6)
@@ -48,7 +47,7 @@ parser.add_argument('--repeat', type=int, default=1)
 parser.add_argument('--scope',type=str, default='madeepq')
 parser.add_argument('--ros', type=int, default=0)
 parser.add_argument('--ros_log', type=int, default=0)
-parser.add_argument('--map', type=str, default="emptySmall")
+parser.add_argument('--map', type=str, default="emptyMed")
 parser.add_argument('--nb_agents', type=int, default=2)
 parser.add_argument('--nb_targets', type=int, default=2)
 parser.add_argument('--eval_type', choices=['random', 'random_zone', 'fixed'], default='random')
@@ -138,7 +137,7 @@ def test():
     while( not hasattr(timelimit_env, '_elapsed_steps')):
         timelimit_env = timelimit_env.env
     act_params = {'scope': "seed_%d"%learning_prop['seed']+"/"+learning_prop['scope'], 'eps': args.test_eps}
-    act = simple.load(os.path.join(args.log_dir, args.log_fname), act_params)
+    act = madeepq.load(os.path.join(args.log_dir, args.log_fname), act_params)
 
     if args.ros_log:
         from envs.target_tracking.ros_wrapper import RosLog
@@ -157,7 +156,8 @@ def test():
     while(ep < args.nb_test_steps): # test episode
         ep += 1
         episode_rew, nlogdetcov = 0, 0
-        obs, done = env.reset(init_pose_list=given_init_pose), False
+        done = {}
+        obs = env.reset(init_pose_list=given_init_pose)
         test_init_pose.append({'agents':[timelimit_env.env.agents[i].state for i in range(args.nb_agents)],
                             'targets':[timelimit_env.env.targets[i].state for i in range(args.nb_targets)],
                             'belief_targets':[timelimit_env.env.belief_targets[i].state for i in range(args.nb_targets)]})
@@ -171,7 +171,7 @@ def test():
                 ros_log.log(env)
             for agent_id, a_obs in obs.items():
                 action_dict[agent_id] = act(np.array(a_obs)[None])[0]
-            obs, rew, done, _ = env.step(action_dict)
+            obs, rew, done, info = env.step(action_dict)
             episode_rew += rew['__all__']
             nlogdetcov += info['mean_nlogdetcov']
 

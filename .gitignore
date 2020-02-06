@@ -1,5 +1,6 @@
 deep_adfq/*.pyc
 results
+init_pose
 deep_adfq/results
 envs/optQ
 *.png
