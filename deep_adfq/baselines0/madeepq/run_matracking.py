@@ -131,7 +131,7 @@ def test():
                     ros=bool(args.ros),
                     map_name=args.map,
                     num_agents=args.nb_agents, #learning_prop['nb_agents'],
-                    num_targets=args.nb_targets, #learning_prop['nb_targets'],
+                    num_targets=learning_prop['nb_targets'],
                     is_training=False,
                     )
     timelimit_env = env
