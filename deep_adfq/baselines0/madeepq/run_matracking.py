@@ -22,12 +22,12 @@ parser.add_argument('--prioritized-replay-alpha', type=float, default=0.6)
 parser.add_argument('--double_q', type=int, default=0)
 parser.add_argument('--mode', choices=['train', 'test'], default='train')
 parser.add_argument('--dueling', type=int, default=0)
-parser.add_argument('--nb_train_steps', type=int, default=5000)
-parser.add_argument('--buffer_size', type=int, default=1000)
-parser.add_argument('--batch_size', type=int, default=64)
-parser.add_argument('--nb_warmup_steps', type=int, default = 100)
-parser.add_argument('--nb_epoch_steps', type=int, default = 100)
-parser.add_argument('--target_update_freq', type=float, default=50) # This should be smaller than epoch_steps
+parser.add_argument('--nb_train_steps', type=int, default=10000)
+parser.add_argument('--buffer_size', type=int, default=5000)
+parser.add_argument('--batch_size', type=int, default=32)
+parser.add_argument('--nb_warmup_steps', type=int, default = 500)
+parser.add_argument('--nb_epoch_steps', type=int, default = 500)
+parser.add_argument('--target_update_freq', type=float, default=500) # This should be smaller than epoch_steps
 parser.add_argument('--nb_test_steps',type=int, default = None)
 parser.add_argument('--learning_rate', type=float, default=0.001)
 parser.add_argument('--learning_rate_decay_factor', type=float, default=1.0)
@@ -106,6 +106,7 @@ def train(seed, save_dir):
                                 figID=1,
                                 ros=bool(args.ros),
                                 map_name=args.map,
+                                num_agents=args.nb_agents,
                                 num_targets=args.nb_targets,
                                 eval_type=args.eval_type,
                                 init_file_path=args.init_file_path,
@@ -129,8 +130,8 @@ def test():
                     directory=args.log_dir,
                     ros=bool(args.ros),
                     map_name=args.map,
-                    num_agents=learning_prop['nb_agents'],
-                    num_targets=learning_prop['nb_targets'],
+                    num_agents=args.nb_agents, #learning_prop['nb_agents'],
+                    num_targets=args.nb_targets, #learning_prop['nb_targets'],
                     is_training=False,
                     )
     timelimit_env = env
