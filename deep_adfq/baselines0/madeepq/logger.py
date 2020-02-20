@@ -278,7 +278,7 @@ def batch_plot(list_records, save_dir, nb_train_steps, nb_epoch_steps, is_target
                 _ = ax0.plot(x_vals[-v_i.shape[1]:], np.min(v_i, axis=0), color='r')
                 _ = ax0.grid()
                 if k == 'mean_nlogdetcov':
-                    ax0.set_ylim(-1500, 3000)
+                    ax0.set_ylim(-1500, 5000)
                 _ = f0.savefig(os.path.join(save_dir, "%s_eval_%d.png"%(k,i)))
                 plt.close()
         else:
@@ -293,7 +293,7 @@ def batch_plot(list_records, save_dir, nb_train_steps, nb_epoch_steps, is_target
             _ = ax0.plot(x_vals[-v.shape[1]:], np.min(v, axis=0), color='r')
             _ = ax0.grid()
             if k == 'mean_nlogdetcov':
-                ax0.set_ylim(-1500, 3000)
+                ax0.set_ylim(-1500, 5000)
             _ = f0.savefig(os.path.join(save_dir, k+".png"))
             plt.close()
 
