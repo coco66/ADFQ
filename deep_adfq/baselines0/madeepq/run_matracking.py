@@ -12,7 +12,7 @@ from baselines0.common import set_global_seeds
 from baselines0 import madeepq
 
 import envs
-from baselines0.madeepq.logger import Logger
+from baselines0.madeepq.logger import Logger, batch_plot
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('--env', help='environment ID', default='maTracking-v2')
@@ -121,7 +121,8 @@ def train(seed, save_dir):
     if args.record == 1:
         env.moviewriter.finish()
 
-def test():
+def test(seed):
+    set_global_seeds(seed)
     learning_prop = json.load(open(os.path.join(args.log_dir, 'learning_prop.json'),'r'))
     env = envs.make(args.env,
                     'ma_target_tracking',
@@ -199,14 +200,22 @@ if __name__ == '__main__':
         else:
             ValueError("The directory already exists...", save_dir)
         json.dump(vars(args), open(os.path.join(save_dir, 'learning_prop.json'), 'w'))
-        seed = args.seed
-        for _ in range(args.repeat):
-            print("===== TRAIN A TARGET TRACKING RL AGENT : SEED %d ====="%seed)
-            results = train(seed, save_dir)
-            seed += 1
+
         notes = input("Any notes for this experiment? : ")
         f = open(os.path.join(save_dir, "notes.txt"), 'w')
         f.write(notes)
         f.close()
+
+        seed = args.seed
+        list_records = []
+        for _ in range(args.repeat):
+            print("===== TRAIN A TARGET TRACKING RL AGENT : SEED %d ====="%seed)
+            results = train(seed, save_dir)
+            list_records.append(pickle.load(open(os.path.join(save_dir, "seed_%d"%seed, "records.pkl"), "rb")))
+            seed += 1
+
+        batch_plot(list_records, save_dir, args.nb_train_steps,
+            args.nb_epoch_steps, is_target_tracking=True)
+
     elif args.mode =='test':
-        test()
+        test(args.seed)
