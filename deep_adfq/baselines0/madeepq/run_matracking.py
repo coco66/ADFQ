@@ -181,7 +181,8 @@ def test(seed):
         time_elapsed.append(time.time() - s_time)
         ep_nlogdetcov.append(nlogdetcov)
         graph_nlogdetcov.append(nlogdetcov)
-        print("Ep.%d - Episode reward : %.2f, Episode nLogDetCov : %.2f"%(ep, episode_rew, nlogdetcov))
+        if ep % 100 == 0:
+            print("Ep.%d - Episode reward : %.2f, Episode nLogDetCov : %.2f"%(ep, episode_rew, nlogdetcov))
 
     if args.record :
         env.moviewriter.finish()
@@ -193,7 +194,9 @@ def test(seed):
     matplotlib.use('Agg')
     from matplotlib import pyplot as plt
     f0, ax0 = plt.subplots()
-    _ = ax0.plot(graph_nlogdetcov)
+    _ = ax0.plot(graph_nlogdetcov, '.')
+    _ = ax0.set_xlabel('episode number')
+    _ = ax0.set_ylabel('mean_nlogdetcov')
     _ = ax0.grid()
     _ = f0.savefig(os.path.join(args.log_dir, "%d_eval_eps_seed_%d.png"%(args.nb_test_steps,seed)))
     plt.close()
