@@ -149,6 +149,7 @@ def test(seed):
     init_pos = []
     ep_nlogdetcov = ['Episode nLogDetCov']
     time_elapsed = ['Elapsed Time (sec)']
+    graph_nlogdetcov = []
     given_init_pose, test_init_pose = [], []
     # Use a fixed set of initial positions if given.
     if args.init_file_path != '.':
@@ -179,6 +180,7 @@ def test(seed):
 
         time_elapsed.append(time.time() - s_time)
         ep_nlogdetcov.append(nlogdetcov)
+        graph_nlogdetcov.append(nlogdetcov)
         print("Ep.%d - Episode reward : %.2f, Episode nLogDetCov : %.2f"%(ep, episode_rew, nlogdetcov))
 
     if args.record :
@@ -187,6 +189,15 @@ def test(seed):
         ros_log.save(args.log_dir)
 
     import pickle, tabulate
+    import matplotlib
+    matplotlib.use('Agg')
+    from matplotlib import pyplot as plt
+    f0, ax0 = plt.subplots()
+    _ = ax0.plot(graph_nlogdetcov)
+    _ = ax0.grid()
+    _ = f0.savefig(os.path.join(args.log_dir, "%d_eval_eps_seed_%d.png"%(args.nb_test_steps,seed)))
+    plt.close()
+
     pickle.dump(test_init_pose, open(os.path.join(args.log_dir,'test_init_pose.pkl'), 'wb'))
     f_result = open(os.path.join(args.log_dir, 'test_result.txt'), 'w')
     f_result.write(tabulate.tabulate([ep_nlogdetcov, time_elapsed], tablefmt='presto'))
@@ -214,8 +225,8 @@ if __name__ == '__main__':
             list_records.append(pickle.load(open(os.path.join(save_dir, "seed_%d"%seed, "records.pkl"), "rb")))
             seed += 1
 
-        batch_plot(list_records, save_dir, args.nb_train_steps,
-            args.nb_epoch_steps, is_target_tracking=True)
+        # batch_plot(list_records, save_dir, args.nb_train_steps,
+            # args.nb_epoch_steps, is_target_tracking=True)
 
     elif args.mode =='test':
         test(args.seed)

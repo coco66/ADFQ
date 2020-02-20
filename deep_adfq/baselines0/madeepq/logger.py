@@ -176,7 +176,6 @@ def evaluation(act, env_id, env_type, nb_test_steps=None, nb_itrs=5,
             while not done:
                 if render:
                     env.render()
-                import pdb;pdb.set_trace()
                 action = act(np.array(obs)[None])[0]
                 obs, rew, done, info = env.step(action)
                 episode_reward += rew
