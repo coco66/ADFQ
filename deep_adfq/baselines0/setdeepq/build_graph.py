@@ -148,7 +148,7 @@ def default_param_noise_filter(var):
     return False
 
 
-def build_act(make_obs_ph, q_func, num_actions, scope="deepq", reuse=None):
+def build_act(make_obs_ph, q_func, num_actions, scope="setdeepq", reuse=None):
     """Creates the act function:
 
     Parameters
@@ -203,7 +203,7 @@ def build_act(make_obs_ph, q_func, num_actions, scope="deepq", reuse=None):
             return _act(ob, stochastic, update_eps)
         return act
 
-def build_act_greedy(make_obs_ph, q_func, num_actions, scope="deepq", reuse=True, eps=0.0):
+def build_act_greedy(make_obs_ph, q_func, num_actions, scope="setdeepq", reuse=True, eps=0.0):
     """Creates the act function for a simple fixed epsilon greedy
        Added by HJ
     """
@@ -226,7 +226,7 @@ def build_act_greedy(make_obs_ph, q_func, num_actions, scope="deepq", reuse=True
             return _act(ob, stochastic)
         return act
 
-def build_act_with_param_noise(make_obs_ph, q_func, num_actions, scope="deepq", reuse=None, param_noise_filter_func=None):
+def build_act_with_param_noise(make_obs_ph, q_func, num_actions, scope="setdeepq", reuse=None, param_noise_filter_func=None):
     """Creates the act function with support for parameter space noise exploration (https://arxiv.org/abs/1706.01905):
 
     Parameters
@@ -342,7 +342,7 @@ def build_act_with_param_noise(make_obs_ph, q_func, num_actions, scope="deepq", 
 
 
 def build_train(make_obs_ph, q_func, num_actions, optimizer_f,
-    grad_norm_clipping=None, gamma=1.0, double_q=False, scope="setdeepq",
+    grad_norm_clipping=None, gamma=1.0, double_q=False, scope="setdeepqset",
     reuse=None, param_noise=False, param_noise_filter_func=None, test_eps=0.05,
     lr_init = 0.001, lr_decay_factor=0.99, lr_growth_factor=1.001, tau=0.001):
     """Creates the train function:

@@ -9,13 +9,13 @@ import datetime, json, os, argparse, time, pickle
 import numpy as np
 
 from baselines0.common import set_global_seeds
-from baselines0 import madeepq
+from baselines0 import setdeepq
 
 import envs
-from baselines0.madeepq.logger import Logger, batch_plot
+from baselines0.setdeepq.logger import Logger, batch_plot
 
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument('--env', help='environment ID', default='maTracking-v2')
+parser.add_argument('--env', help='environment ID', default='setTracking-v1')
 parser.add_argument('--seed', help='RNG seed', type=int, default=0)
 parser.add_argument('--prioritized', type=int, default=0)
 parser.add_argument('--prioritized-replay-alpha', type=float, default=0.6)
@@ -44,7 +44,7 @@ parser.add_argument('--record',type=int, default=0)
 parser.add_argument('--render', type=int, default=0)
 parser.add_argument('--gpu_memory',type=float, default=1.0)
 parser.add_argument('--repeat', type=int, default=1)
-parser.add_argument('--scope',type=str, default='madeepq')
+parser.add_argument('--scope',type=str, default='setdeepq')
 parser.add_argument('--ros', type=int, default=0)
 parser.add_argument('--ros_log', type=int, default=0)
 parser.add_argument('--map', type=str, default="emptyMed")
@@ -76,8 +76,8 @@ def train(seed, save_dir):
         with tf.compat.v1.variable_scope('seed_%d'%seed):
             hiddens = args.hiddens.split(':')
             hiddens = [int(h) for h in hiddens]
-            model = madeepq.models.mlp(hiddens)
-            act = madeepq.learn(
+            model = setdeepq.models.mlp(hiddens)
+            act = setdeepq.learn(
                 env,
                 q_func=model,
                 lr=args.learning_rate,
@@ -139,7 +139,7 @@ def test(seed):
     while( not hasattr(timelimit_env, '_elapsed_steps')):
         timelimit_env = timelimit_env.env
     act_params = {'scope': "seed_%d"%learning_prop['seed']+"/"+learning_prop['scope'], 'eps': args.test_eps}
-    act = madeepq.load(os.path.join(args.log_dir, args.log_fname), act_params)
+    act = setdeepq.load(os.path.join(args.log_dir, args.log_fname), act_params)
 
     if args.ros_log:
         from envs.target_tracking.ros_wrapper import RosLog
