@@ -15,9 +15,9 @@ import baselines0.common.tf_util as U
 from baselines0 import logger
 from baselines0.common.schedules import LinearSchedule
 
-from baselines0 import madeepq
-from baselines0.madeepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
-from baselines0.madeepq.utils import BatchInput, load_state, save_state
+from baselines0 import setdeepq
+from baselines0.setdeepq.replay_buffer import ReplayBuffer, PrioritizedReplayBuffer
+from baselines0.setdeepq.utils import BatchInput, load_state, save_state
 
 class ActWrapper(object):
     def __init__(self, act, act_params):
@@ -32,7 +32,7 @@ class ActWrapper(object):
             for (k,v) in act_params_new.items():
                 act_params[k] = v
 
-        act = madeepq.build_act_greedy(reuse=None, **act_params)
+        act = setdeepq.build_act_greedy(reuse=None, **act_params)
         sess = tf.compat.v1.Session()
         sess.__enter__()
         with tempfile.TemporaryDirectory() as td:
@@ -109,7 +109,7 @@ def learn(env,
           prioritized_replay_eps=1e-6,
           param_noise=False,
           callback=None,
-          scope="madeepq",
+          scope="setdeepq",
           double_q=False,
           epoch_steps=20000,
           eval_logger=None,
@@ -217,7 +217,7 @@ def learn(env,
     target_network_update_rate = np.minimum(target_network_update_freq, 1.0)
     target_network_update_freq = np.maximum(target_network_update_freq, 1.0)
 
-    act, act_test, q_values, train, update_target, lr_decay_op, lr_growth_op, _ = madeepq.build_train(
+    act, act_test, q_values, train, update_target, lr_decay_op, lr_growth_op, _ = setdeepq.build_train(
         make_obs_ph=make_obs_ph,
         q_func=q_func,
         num_actions=env.action_space.n,
