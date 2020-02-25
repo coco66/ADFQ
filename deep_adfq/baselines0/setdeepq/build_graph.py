@@ -318,7 +318,7 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer_f,
         q_func_vars = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.GLOBAL_VARIABLES, scope=tf.compat.v1.get_variable_scope().name + "/q_func")
 
         # target q network evalution
-        q_tp1 = q_func.forward(obs_tp1_input.get(), num_actions, scope="target_q_func")
+        q_tp1 = q_func.forward(obs_tp1_input.get(), num_actions, scope="target_q_func", reuse=False)
         target_q_func_vars = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.GLOBAL_VARIABLES, scope=tf.compat.v1.get_variable_scope().name + "/target_q_func")
 
         # q scores for actions which we know were selected in the given state.
