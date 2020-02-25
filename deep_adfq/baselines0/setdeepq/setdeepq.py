@@ -32,7 +32,7 @@ class ActWrapper(object):
             for (k,v) in act_params_new.items():
                 act_params[k] = v
 
-        act = setdeepq.build_act_greedy(reuse=None, **act_params)
+        act = setdeepq.build_act_greedy(reuse=tf.compat.v1.AUTO_REUSE, **act_params)
         sess = tf.compat.v1.Session()
         sess.__enter__()
         with tempfile.TemporaryDirectory() as td:
