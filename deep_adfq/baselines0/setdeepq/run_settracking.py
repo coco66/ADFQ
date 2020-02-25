@@ -48,7 +48,7 @@ parser.add_argument('--scope',type=str, default='setdeepq')
 parser.add_argument('--ros', type=int, default=0)
 parser.add_argument('--ros_log', type=int, default=0)
 parser.add_argument('--map', type=str, default="emptyMed")
-parser.add_argument('--nb_agents', type=int, default=2)
+parser.add_argument('--nb_agents', type=int, default=1)
 parser.add_argument('--nb_targets', type=int, default=2)
 parser.add_argument('--eval_type', choices=['random', 'random_zone', 'fixed'], default='random')
 parser.add_argument('--init_file_path', type=str, default=".")
@@ -76,7 +76,7 @@ def train(seed, save_dir):
         with tf.compat.v1.variable_scope('seed_%d'%seed):
             hiddens = args.hiddens.split(':')
             hiddens = [int(h) for h in hiddens]
-            model = setdeepq.models.mlp(hiddens)
+            model = setdeepq.models.SetTransformer()
             act = setdeepq.learn(
                 env,
                 q_func=model,
