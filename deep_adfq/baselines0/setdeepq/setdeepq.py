@@ -210,7 +210,9 @@ def learn(env,
 
     # capture the shape outside the closure so that the env object is not serialized
     # by cloudpickle when serializing make_obs_ph
-    observation_space_shape = env.observation_space.shape
+    # Make observation a Set with variable size [N,?,d_obs]
+    observation_space_shape = [None] + list(env.observation_space.shape)
+
     def make_obs_ph(name):
         return BatchInput(observation_space_shape, name=name)
 
