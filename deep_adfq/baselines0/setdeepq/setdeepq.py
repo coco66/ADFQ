@@ -312,9 +312,11 @@ def learn(env,
             # Store transition in the replay buffer.
             for agent_id, a_obs in obs.items():
                 if timelimit_env._elapsed_steps < timelimit_env._max_episode_steps:
-                    replay_buffer.add(a_obs, action_dict[agent_id], rew['__all__'], new_obs[agent_id], float(done['__all__']))
+                    replay_buffer.add(a_obs, action_dict[agent_id], rew['__all__'], 
+                                      new_obs[agent_id], float(done['__all__']), env.nb_targets)
                 else:
-                    replay_buffer.add(a_obs, action_dict[agent_id], rew['__all__'], new_obs[agent_id], float(not done))
+                    replay_buffer.add(a_obs, action_dict[agent_id], rew['__all__'], 
+                                      new_obs[agent_id], float(not done), env.nb_targets)
 
             obs = new_obs
             eval_logger.log_reward(rew['__all__'])
@@ -330,7 +332,7 @@ def learn(env,
                     experience = replay_buffer.sample(batch_size, beta=beta_schedule.value(t))
                     (obses_t, actions, rewards, obses_tp1, dones, weights, batch_idxes) = experience
                 else:
-                    obses_t, actions, rewards, obses_tp1, dones = replay_buffer.sample(batch_size)
+                    obses_t, actions, rewards, obses_tp1, dones = replay_buffer.sample(batch_size, env.num_targets)
                     weights, batch_idxes = np.ones_like(rewards), None
 
                 td_errors, loss, summary = train(obses_t, actions, rewards, obses_tp1, dones, weights)
