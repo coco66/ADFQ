@@ -132,7 +132,7 @@ def test(seed):
                     ros=bool(args.ros),
                     map_name=args.map,
                     num_agents=args.nb_agents, #learning_prop['nb_agents'],
-                    num_targets=learning_prop['nb_targets'],
+                    num_targets=args.nb_targets, #learning_prop['nb_targets'],
                     is_training=False,
                     )
     timelimit_env = env
@@ -189,6 +189,10 @@ def test(seed):
     if args.ros_log :
         ros_log.save(args.log_dir)
 
+    # Eval plots and saves
+    eval_dir = os.path.join(args.log_dir, 'eval_seed%d'%(seed))
+    if not os.path.exists(eval_dir):
+        os.makedirs(eval_dir)
     import pickle, tabulate
     import matplotlib
     matplotlib.use('Agg')
@@ -198,9 +202,12 @@ def test(seed):
     _ = ax0.set_xlabel('episode number')
     _ = ax0.set_ylabel('mean_nlogdetcov')
     _ = ax0.grid()
-    _ = f0.savefig(os.path.join(args.log_dir, "%d_eval_eps_seed_%d.png"%(args.nb_test_steps,seed)))
+    _ = f0.savefig(os.path.join(eval_dir, "%da%dt_%d_eval_eps.png"%
+                                        (args.nb_agents, args.nb_targets, args.nb_test_steps)))
     plt.close()
-
+    pickle.dump(graph_nlogdetcov, open(os.path.join(eval_dir,'%da%dt_%d_eval_eps.pkl'%
+                                        (args.nb_agents, args.nb_targets, args.nb_test_steps)), 'wb'))
+    
     pickle.dump(test_init_pose, open(os.path.join(args.log_dir,'test_init_pose.pkl'), 'wb'))
     f_result = open(os.path.join(args.log_dir, 'test_result.txt'), 'w')
     f_result.write(tabulate.tabulate([ep_nlogdetcov, time_elapsed], tablefmt='presto'))
