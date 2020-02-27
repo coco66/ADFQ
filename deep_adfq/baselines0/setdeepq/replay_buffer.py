@@ -6,7 +6,7 @@ from baselines0.common.segment_tree import SumSegmentTree, MinSegmentTree
 
 class ReplayBuffer(object):
     def __init__(self, size):
-        """Create Replay buffer.
+        """Create Replay buffer. edited to include nb_targets_idx buffer
 
         Parameters
         ----------
@@ -15,19 +15,22 @@ class ReplayBuffer(object):
             overflows the old memories are dropped.
         """
         self._storage = []
+        self._nb_targ_idxs = []
         self._maxsize = size
         self._next_idx = 0
 
     def __len__(self):
         return len(self._storage)
 
-    def add(self, obs_t, action, reward, obs_tp1, done):
+    def add(self, obs_t, action, reward, obs_tp1, done, nb_targets):
         data = (obs_t, action, reward, obs_tp1, done)
 
         if self._next_idx >= len(self._storage):
             self._storage.append(data)
+            self._nb_targ_idxs.append(nb_targets)
         else:
             self._storage[self._next_idx] = data
+            self._nb_targ_idxs[self._next_idx] = nb_targets
         self._next_idx = (self._next_idx + 1) % self._maxsize
 
     def _encode_sample(self, idxes):
@@ -42,8 +45,9 @@ class ReplayBuffer(object):
             dones.append(done)
         return np.array(obses_t), np.array(actions), np.array(rewards), np.array(obses_tp1), np.array(dones)
 
-    def sample(self, batch_size):
-        """Sample a batch of experiences.
+    def sample(self, batch_size, num_targets):
+        """Sample a batch of experiences. Randomly sample a batch of experiences all
+        with the same number of targets. Number of targets is sampled from the range [1,num_targets]
 
         Parameters
         ----------
@@ -64,7 +68,11 @@ class ReplayBuffer(object):
             done_mask[i] = 1 if executing act_batch[i] resulted in
             the end of an episode and 0 otherwise.
         """
-        idxes = [random.randint(0, len(self._storage) - 1) for _ in range(batch_size)]
+
+        nb_targets = np.random.random_integers(1, num_targets)
+        targ_idxs = np.where(np.array(self._nb_targ_idxs)==nb_targets)[0]
+        idxes = [targ_idxs[random.randint(0, len(targ_idxs) - 1)] for _ in range(batch_size)]
+        # idxes = [random.randint(0, len(self._storage) - 1) for _ in range(batch_size)]
         return self._encode_sample(idxes)
 
 
