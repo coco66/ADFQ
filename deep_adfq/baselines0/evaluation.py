@@ -30,7 +30,6 @@ class Test:
         given_init_pose, test_init_pose = [], []
         # Use a fixed set of initial positions if given.
         if args.init_file_path != '.':
-            # import pickle
             given_init_pose = pickle.load(open(args.init_file_path, "rb"))
 
         while(ep < args.nb_test_steps): # test episode
