@@ -19,7 +19,7 @@ parser.add_argument('--env', help='environment ID', default='setTracking-v1')
 parser.add_argument('--seed', help='RNG seed', type=int, default=0)
 parser.add_argument('--prioritized', type=int, default=0)
 parser.add_argument('--prioritized-replay-alpha', type=float, default=0.6)
-parser.add_argument('--double_q', type=int, default=0)
+parser.add_argument('--double_q', type=int, default=1)  #not used: always clipped double q
 parser.add_argument('--mode', choices=['train', 'test'], default='train')
 parser.add_argument('--dueling', type=int, default=0)
 parser.add_argument('--nb_train_steps', type=int, default=100000)
@@ -27,7 +27,7 @@ parser.add_argument('--buffer_size', type=int, default=10000)
 parser.add_argument('--batch_size', type=int, default=32)
 parser.add_argument('--nb_warmup_steps', type=int, default = 1000)
 parser.add_argument('--nb_epoch_steps', type=int, default = 1000)
-parser.add_argument('--target_update_freq', type=float, default=1) # This should be smaller than epoch_steps
+parser.add_argument('--target_update_freq', type=float, default=1) #not used: target updated every step
 parser.add_argument('--nb_test_steps',type=int, default = None)
 parser.add_argument('--learning_rate', type=float, default=0.001)
 parser.add_argument('--learning_rate_decay_factor', type=float, default=1.0)
