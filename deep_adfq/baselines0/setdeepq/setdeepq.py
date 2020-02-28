@@ -346,9 +346,8 @@ def learn(env,
                 if render:
                     env.render()
 
-            if t > learning_starts and (t+1) % target_network_update_freq == 0:
-                # Update target network periodically.
-                update_target()
+            #Update target every step with polyak averaging based on a tau
+            update_target()
 
             if (t+1) % epoch_steps == 0:
                 eval_logger.log_epoch(act_test)
