@@ -3,7 +3,7 @@ This code was slightly modified from the baselines/baselines/deepq/build_graph.p
 a different evaluation method. In order to run, simply replace the original code with this code
 in the original directory.
 """
-"""Deep Q learning graph
+"""Clipped Double Q learning graph
 
 The functions in this file can are used to create the following functions:
 
@@ -184,9 +184,11 @@ def build_act(make_obs_ph, q_func, num_actions, scope="setdeepq", reuse=None):
         update_eps_ph = tf.compat.v1.placeholder(tf.float32, (), name="update_eps")
 
         eps = tf.compat.v1.get_variable("eps", (), initializer=tf.compat.v1.constant_initializer(0))
-
-        q_values = q_func.forward(observations_ph.get(), num_actions, scope="q_func", reuse=reuse)
-        deterministic_actions = tf.argmax(input=q_values, axis=1)
+        # Clipped Double q
+        q1_values = q_func.forward(observations_ph.get(), num_actions, scope="q1_func", reuse=reuse)
+        q2_values = q_func.forward(observations_ph.get(), num_actions, scope="q2_func", reuse=reuse)
+        # Sum over q1 and q2 and find the action with argmax
+        deterministic_actions = tf.argmax(input=q1_values+q2_values, axis=1)
 
         batch_size = tf.shape(input=observations_ph.get())[0]
         random_actions = tf.random.uniform(tf.stack([batch_size]), minval=0, maxval=num_actions, dtype=tf.int64)
@@ -210,9 +212,11 @@ def build_act_greedy(make_obs_ph, q_func, num_actions, scope="setdeepq", reuse=T
     with tf.compat.v1.variable_scope(scope, reuse=reuse):
         observations_ph = make_obs_ph("observation")
         stochastic_ph = tf.compat.v1.placeholder(tf.bool, (), name="stochastic")
-
-        q_values = q_func.forward(observations_ph.get(), num_actions, scope="q_func", reuse=reuse)
-        deterministic_actions = tf.argmax(input=q_values, axis=1)
+        # Clipped Double q
+        q1_values = q_func.forward(observations_ph.get(), num_actions, scope="q1_func", reuse=reuse)
+        q2_values = q_func.forward(observations_ph.get(), num_actions, scope="q2_func", reuse=reuse)
+        # Sum over q1 and q2 and find the action with argmax
+        deterministic_actions = tf.argmax(input=q1_values+q2_values, axis=1)
 
         batch_size = tf.shape(input=observations_ph.get())[0]
         random_actions = tf.random.uniform(tf.stack([batch_size]), minval=0, maxval=num_actions, dtype=tf.int64)
@@ -230,7 +234,7 @@ def build_act_greedy(make_obs_ph, q_func, num_actions, scope="setdeepq", reuse=T
 def build_train(make_obs_ph, q_func, num_actions, optimizer_f,
     grad_norm_clipping=None, gamma=1.0, double_q=False, scope="setdeepq",
     reuse=None, param_noise=False, param_noise_filter_func=None, test_eps=0.05,
-    lr_init = 0.001, lr_decay_factor=0.99, lr_growth_factor=1.001, tau=0.001):
+    lr_init = 0.001, lr_decay_factor=0.99, lr_growth_factor=1.001, tau=0.05):
     """Creates the train function:
 
     Parameters
@@ -314,38 +318,54 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer_f,
         optimizer = optimizer_f(learning_rate = lr)
 
         # q network evaluation
-        q_t = q_func.forward(obs_t_input.get(), num_actions, scope="q_func", reuse=True)  # reuse parameters from act
-        q_func_vars = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.GLOBAL_VARIABLES, scope=tf.compat.v1.get_variable_scope().name + "/q_func")
+        q1_t = q_func.forward(obs_t_input.get(), num_actions, scope="q1_func", reuse=True)  # reuse q1 parameters from act
+        q1_func_vars = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES, scope=tf.compat.v1.get_variable_scope().name + "/q1_func")
+        q2_t = q_func.forward(obs_t_input.get(), num_actions, scope="q2_func", reuse=True)  # reuse q2 parameters from act
+        q2_func_vars = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES, scope=tf.compat.v1.get_variable_scope().name + "/q2_func")
 
         # target q network evalution
-        q_tp1 = q_func.forward(obs_tp1_input.get(), num_actions, scope="target_q_func", reuse=False)
-        target_q_func_vars = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.GLOBAL_VARIABLES, scope=tf.compat.v1.get_variable_scope().name + "/target_q_func")
+        q1_tp1 = q_func.forward(obs_tp1_input.get(), num_actions, scope="target_q1_func", reuse=False)
+        target_q1_func_vars = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES, scope=tf.compat.v1.get_variable_scope().name + "/target_q1_func")
+        q2_tp1 = q_func.forward(obs_tp1_input.get(), num_actions, scope="target_q2_func", reuse=False)
+        target_q2_func_vars = tf.compat.v1.get_collection(tf.compat.v1.GraphKeys.TRAINABLE_VARIABLES, scope=tf.compat.v1.get_variable_scope().name + "/target_q2_func")
 
         # q scores for actions which we know were selected in the given state.
-        q_t_selected = tf.reduce_sum(input_tensor=q_t * tf.one_hot(act_t_ph, num_actions), axis=1)
+        q1_t_selected = tf.reduce_sum(input_tensor=q1_t * tf.one_hot(act_t_ph, num_actions), axis=1)
+        q2_t_selected = tf.reduce_sum(input_tensor=q2_t * tf.one_hot(act_t_ph, num_actions), axis=1)
 
-        # compute estimate of best possible value starting from state at t + 1
-        if double_q:
-            q_tp1_using_online_net = q_func.forward(obs_tp1_input.get(), num_actions, scope="q_func", reuse=True)
-            q_tp1_best_using_online_net = tf.argmax(input=q_tp1_using_online_net, axis=1)
-            q_tp1_best = tf.reduce_sum(input_tensor=q_tp1 * tf.one_hot(q_tp1_best_using_online_net, num_actions), axis=1)
-        else:
-            q_tp1_best = tf.reduce_max(input_tensor=q_tp1, axis=1)
+        # Actions selected with current q funcs at state t+1.
+        q1_tp1_using_online_net = q_func.forward(obs_tp1_input.get(), num_actions, scope="q1_func", reuse=True)
+        q2_tp1_using_online_net = q_func.forward(obs_tp1_input.get(), num_actions, scope="q2_func", reuse=True)
+        tp1_best_action_using_online_net = tf.argmax(input=q1_tp1_using_online_net+q2_tp1_using_online_net, axis=1)
+        # Using action at t+1 find target value associated with the action
+        q1_tp1_selected = tf.reduce_sum(input_tensor=q1_tp1 * tf.one_hot(tp1_best_action_using_online_net, num_actions), axis=1)
+        q2_tp1_selected = tf.reduce_sum(input_tensor=q2_tp1 * tf.one_hot(tp1_best_action_using_online_net, num_actions), axis=1)
+        # Min of target q values to be used bellman equation
+        q_tp1_best = tf.minimum(q1_tp1_selected, q2_tp1_selected)
+
+        # Done mask
         q_tp1_best_masked = (1.0 - done_mask_ph) * q_tp1_best
 
         # compute RHS of bellman equation
-        q_t_selected_target = rew_t_ph + gamma * q_tp1_best_masked
+        q_tp1_selected_target = rew_t_ph + gamma * q_tp1_best_masked
 
         # compute the error (potentially clipped)
-        td_error = q_t_selected - tf.stop_gradient(q_t_selected_target)
-        errors = U.huber_loss(td_error)
+        td_error1 = q1_t_selected - tf.stop_gradient(q_tp1_selected_target)
+        td_error2 = q2_t_selected - tf.stop_gradient(q_tp1_selected_target)
+        errors1 = U.huber_loss(td_error1)
+        errors2 = U.huber_loss(td_error2)
+        errors = errors1 + errors2
         weighted_error = tf.reduce_mean(input_tensor=importance_weights_ph * errors)
 
         # Log for tensorboard
-        tf.summary.scalar('q_values', tf.math.reduce_mean(q_t))
-        tf.summary.scalar('td_MSE', tf.math.reduce_mean(tf.math.square(td_error)))
+        tf.summary.scalar('q1_values', tf.math.reduce_mean(q1_t))
+        tf.summary.scalar('q2_values', tf.math.reduce_mean(q2_t))
+        tf.summary.scalar('td_MSE_1', tf.math.reduce_mean(tf.math.square(td_error1)))
+        tf.summary.scalar('td_MSE_2', tf.math.reduce_mean(tf.math.square(td_error2)))
         tf.summary.scalar('weighted_loss', weighted_error)
 
+        # combine variable scopes
+        q_func_vars = q1_func_vars+q2_func_vars
         # compute optimization op (potentially with gradient clipping)
         if grad_norm_clipping is not None:
             gradients = optimizer.compute_gradients(weighted_error, var_list=q_func_vars)
@@ -356,12 +376,19 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer_f,
         else:
             optimize_expr = optimizer.minimize(weighted_error, var_list=q_func_vars)
 
-        # update_target_fn will be called periodically to copy Q network to target Q network
-        update_target_expr = []
-        for var, var_target in zip(sorted(q_func_vars, key=lambda v: v.name),
-                                   sorted(target_q_func_vars, key=lambda v: v.name)):
-            update_target_expr.append(var_target.assign(tau*var + (1-tau)*var_target))
-        update_target_expr = tf.group(*update_target_expr)
+        # update_target_fn will be called every step to copy Q network to target Q network
+        # target network is updated with polyak averaging
+        update_target_expr1 = []
+        for var, var_target in zip(sorted(q1_func_vars, key=lambda v: v.name),
+                                   sorted(target_q1_func_vars, key=lambda v: v.name)):
+            update_target_expr1.append(var_target.assign(tau*var + (1-tau)*var_target))
+        update_target_expr1 = tf.group(*update_target_expr1)
+
+        update_target_expr2 = []
+        for var, var_target in zip(sorted(q2_func_vars, key=lambda v: v.name),
+                                   sorted(target_q2_func_vars, key=lambda v: v.name)):
+            update_target_expr2.append(var_target.assign(tau*var + (1-tau)*var_target))
+        update_target_expr2 = tf.group(*update_target_expr2)
 
         merged_summary = tf.compat.v1.summary.merge_all(scope=tf.compat.v1.get_variable_scope().name)
         # Create callable functions
@@ -374,11 +401,11 @@ def build_train(make_obs_ph, q_func, num_actions, optimizer_f,
                 done_mask_ph,
                 importance_weights_ph
             ],
-            outputs=[td_error, tf.reduce_mean(input_tensor=errors), merged_summary],
+            outputs=[td_error1, td_error2, tf.reduce_mean(input_tensor=errors), merged_summary],
             updates=[optimize_expr]
         )
-        update_target = U.function([], [], updates=[update_target_expr])
+        update_target = U.function([], [], updates=[update_target_expr1, update_target_expr2])
 
-        q_values = U.function(inputs=[obs_t_input], outputs=q_t)
+        q_values = U.function(inputs=[obs_t_input], outputs=[q1_t, q2_t])
 
         return act_f, act_greedy, q_values, train, update_target, lr_decay_op, lr_growth_op, {'q_values': q_values}

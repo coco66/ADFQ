@@ -101,7 +101,7 @@ def learn(env,
           checkpoint_path=None,
           learning_starts=1000,
           gamma=1.0,
-          target_network_update_freq=500,
+          target_network_update_freq=0.05,
           prioritized_replay=False,
           prioritized_replay_alpha=0.6,
           prioritized_replay_beta0=0.4,
@@ -216,6 +216,8 @@ def learn(env,
     def make_obs_ph(name):
         return BatchInput(observation_space_shape, name=name)
 
+    # if target_network_update is < 1, update every step with polyak averaging
+    # if target_network_update is > 1, update periodically
     target_network_update_rate = np.minimum(target_network_update_freq, 1.0)
     target_network_update_freq = np.maximum(target_network_update_freq, 1.0)
 
@@ -335,7 +337,7 @@ def learn(env,
                     obses_t, actions, rewards, obses_tp1, dones = replay_buffer.sample(batch_size, env.num_targets)
                     weights, batch_idxes = np.ones_like(rewards), None
 
-                td_errors, loss, summary = train(obses_t, actions, rewards, obses_tp1, dones, weights)
+                td_errors, td_errors2, loss, summary = train(obses_t, actions, rewards, obses_tp1, dones, weights)
 
                 file_writer.add_summary(summary, t)
                 eval_logger.log_step(loss=loss)
@@ -346,8 +348,8 @@ def learn(env,
                 if render:
                     env.render()
 
-            #Update target every step with polyak averaging based on a tau
-            update_target()
+            if t > learning_starts and (t+1) % target_network_update_freq == 0:
+                update_target()
 
             if (t+1) % epoch_steps == 0:
                 eval_logger.log_epoch(act_test)
