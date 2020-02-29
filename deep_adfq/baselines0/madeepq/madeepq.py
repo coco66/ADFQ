@@ -331,7 +331,7 @@ def learn(env,
                     obses_t, actions, rewards, obses_tp1, dones = replay_buffer.sample(batch_size)
                     weights, batch_idxes = np.ones_like(rewards), None
 
-                td_errors, loss, summary = train(obses_t, actions, rewards, obses_tp1, dones, weights)
+                td_errors, td_errors2, loss, summary = train(obses_t, actions, rewards, obses_tp1, dones, weights)
 
                 file_writer.add_summary(summary, t)
                 eval_logger.log_step(loss=loss)
