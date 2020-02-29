@@ -38,8 +38,7 @@ def MAB(Q, K, dim_out, num_heads=4, scope='MAB'):
         # Residual connection
         outputs += _Q
         # Normalization
-        # outputs = layer_norm(outputs)
-        outputs = layers.layer_norm(outputs, center=True, scale=True, scope='ln_MAP')
+        outputs = layers.layer_norm(outputs, center=True, scale=True, scope='ln_MAB')
 
     return outputs
 
@@ -63,37 +62,14 @@ def scaled_dot_product_attention(Q, K, V, scope='Attention'):
 
     return out
 
-def ff(inputs, hidden=64, dim_out=64, scope='feed_forward'):
+def ff(inputs, dim_out=64, scope='feed_forward'):
     #position-wise feed forward net. See 3.3
     with tf.compat.v1.variable_scope(scope):
         #Layers
-        outputs = layers.fully_connected(inputs, num_outputs=hidden, 
-                                            activation_fn=tf.nn.relu, scope='fc_1')
-        outputs = layers.fully_connected(outputs, num_outputs=dim_out, 
-                                            activation_fn=None, scope='fc_2')
+        outputs = layers.fully_connected(inputs, num_outputs=dim_out, 
+                                            activation_fn=tf.nn.relu, scope='fc')
         #Residual connection
-        # outputs += inputs
+        outputs += inputs
         #Normalize
-        # outputs = layer_norm(outputs)
         outputs = layers.layer_norm(outputs, center=True, scale=True, scope='ln_ff')
-    return outputs
-
-def layer_norm(inputs, epsilon = 1e-8, scope="ln"):
-    '''Applies layer normalization. See https://arxiv.org/abs/1607.06450.
-    inputs: A tensor with 2 or more dimensions, where the first dimension has `batch_size`.
-    epsilon: A floating number. A very small number for preventing ZeroDivision Error.
-    scope: Optional scope for `variable_scope`.
-      
-    Returns:
-      A tensor with the same shape and data dtype as `inputs`.
-    '''
-    with tf.variable_scope(scope):
-        inputs_shape = inputs.get_shape()
-        params_shape = inputs_shape[-1:]
-    
-        mean, variance = tf.nn.moments(inputs, [-1], keep_dims=True)
-        beta= tf.get_variable("beta", params_shape, initializer=tf.zeros_initializer())
-        gamma = tf.get_variable("gamma", params_shape, initializer=tf.ones_initializer())
-        normalized = (inputs - mean) / ( (variance + epsilon) ** (.5) )
-        outputs = gamma * normalized + beta
     return outputs
