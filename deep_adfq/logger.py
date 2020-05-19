@@ -211,10 +211,11 @@ def evaluation_ttenv(act, env_id, eval_type='random', nb_itrs=5, render=False, *
     Evaluation for the ttenv environments in a given set of different sampling
     zones. The set of different sampling zones is defined in TTENV_EVAL_SET.
     """
+    from ttenv.metadata import TTENV_EVAL_SET, TTENV_EVAL_MULTI_SET
     if eval_type == 'random':
         params_set = [{}]
     elif eval_type == 'random_zone':
-        params_set = TTENV_EVAL_SET
+        params_set = TTENV_EVAL_SET if num_targets==1 else TTENV_EVAL_MULTI_SET
     elif eval_type == 'fixed':
         params_set = [{'init_pose_list':kwargs['init_pose_list']}]
     else:
@@ -293,41 +294,3 @@ def batch_plot(list_records, save_dir, nb_train_steps, nb_epoch_steps, is_target
                 ax0.set_ylim(-1500, 3000)
             _ = f0.savefig(os.path.join(save_dir, k+".png"))
             plt.close()
-
-TTENV_EVAL_SET = [{
-        'lin_dist_range':(5.0, 10.0),
-        'ang_dist_range_target':(-0.5*np.pi, 0.5*np.pi),
-        'ang_dist_range_belief':(-0.25*np.pi, 0.25*np.pi),
-        'blocked':False
-        },
-        {
-        'lin_dist_range':(10.0, 15.0),
-        'ang_dist_range_target':(-0.5*np.pi, 0.5*np.pi),
-        'ang_dist_range_belief':(-0.25*np.pi, 0.25*np.pi),
-        'blocked':True
-        },
-        { # target and beleif in the opposite direction
-        'lin_dist_range':(5.0, 10.0),
-        'ang_dist_range_target':(0.5*np.pi, -0.5*np.pi),
-        'ang_dist_range_belief':(-0.25*np.pi, 0.25*np.pi),
-        'blocked':False
-        },
-        { # target and beleif in the opposite direction
-        'lin_dist_range':(10.0, 15.0),
-        'ang_dist_range_target':(0.5*np.pi, -0.5*np.pi),
-        'ang_dist_range_belief':(-0.25*np.pi, 0.25*np.pi),
-        'blocked':True
-        },
-        { # target in the opposite direction but belief in the same direction
-        'lin_dist_range':(5.0, 10.0),
-        'ang_dist_range_target':(0.5*np.pi, -0.5*np.pi),
-        'ang_dist_range_belief':(0.75*np.pi, -0.75*np.pi),
-        'blocked':False
-        },
-        { #target in the opposite direction but belief in the same direction
-        'lin_dist_range':(10.0, 15.0),
-        'ang_dist_range_target':(0.5*np.pi, -0.5*np.pi),
-        'ang_dist_range_belief':(0.75*np.pi, -0.75*np.pi),
-        'blocked':True
-        },
-]
